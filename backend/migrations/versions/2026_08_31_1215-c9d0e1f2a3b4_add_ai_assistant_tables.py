@@ -16,10 +16,23 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+def ensure_enum(enum_name: str, values: list) -> None:
+    bind = op.get_bind()
+    if bind.engine.name == "postgresql":
+        with op.get_context().autocommit_block():
+            check_sql = sa.text("SELECT 1 FROM pg_type WHERE typname = :name")
+            exists = bind.execute(check_sql, {"name": enum_name}).scalar()
+            if not exists:
+                vals_str = ", ".join(f"'{v}'" for v in values)
+                bind.execute(sa.text(f"CREATE TYPE {enum_name} AS ENUM ({vals_str})"))
+
+
 def upgrade() -> None:
     conn = op.get_bind()
     inspector = sa.inspect(conn)
     tables = inspector.get_table_names()
+
+    ensure_enum('userrole', ['PATIENT', 'DOCTOR', 'ADMIN', 'LAB_TECHNICIAN', 'PHARMACY_STAFF'])
 
     # 1. Create ai_conversations table if not exists
     if 'ai_conversations' not in tables:

@@ -16,10 +16,26 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+def ensure_enum(enum_name: str, values: list) -> None:
+    bind = op.get_bind()
+    if bind.engine.name == "postgresql":
+        with op.get_context().autocommit_block():
+            check_sql = sa.text("SELECT 1 FROM pg_type WHERE typname = :name")
+            exists = bind.execute(check_sql, {"name": enum_name}).scalar()
+            if not exists:
+                vals_str = ", ".join(f"'{v}'" for v in values)
+                bind.execute(sa.text(f"CREATE TYPE {enum_name} AS ENUM ({vals_str})"))
+
+
 def upgrade() -> None:
     conn = op.get_bind()
     inspector = sa.inspect(conn)
     tables = inspector.get_table_names()
+
+    ensure_enum('laborderpriority', ['ROUTINE', 'URGENT', 'STAT'])
+    ensure_enum('laborderstatus', ['ORDERED', 'SAMPLE_PENDING', 'SAMPLE_COLLECTED', 'IN_PROGRESS', 'RESULTS_ENTERED', 'VERIFIED', 'RELEASED', 'CANCELLED'])
+    ensure_enum('samplecondition', ['ACCEPTABLE', 'HEMOLYZED', 'CLOTTED', 'INSUFFICIENT', 'CONTAMINATED'])
+    ensure_enum('resultflag', ['NORMAL', 'LOW', 'HIGH', 'CRITICAL'])
 
     # 1. Create lab_tests table
     if 'lab_tests' not in tables:
@@ -35,7 +51,7 @@ def upgrade() -> None:
             sa.Column('unit', sa.String(length=50), nullable=True),
             sa.Column('preparation_instructions', sa.Text(), nullable=True),
             sa.Column('estimated_turnaround_time', sa.String(length=100), nullable=True),
-            sa.Column('is_active', sa.Boolean(), nullable=False, server_default=sa.text('1')),
+            sa.Column('is_active', sa.Boolean(), nullable=False, server_default=sa.text('true')),
             sa.Column('created_at', sa.DateTime(), nullable=False),
             sa.Column('updated_at', sa.DateTime(), nullable=False),
             sa.PrimaryKeyConstraint('id'),
@@ -56,7 +72,7 @@ def upgrade() -> None:
             sa.Column('clinical_notes', sa.Text(), nullable=True),
             sa.Column(
                 'priority',
-                sa.Enum('ROUTINE', 'URGENT', 'STAT', name='laborderpriority'),
+                sa.Enum('ROUTINE', 'URGENT', 'STAT', name='laborderpriority', create_type=False),
                 nullable=False,
                 server_default='ROUTINE',
             ),
@@ -72,6 +88,7 @@ def upgrade() -> None:
                     'RELEASED',
                     'CANCELLED',
                     name='laborderstatus',
+                    create_type=False,
                 ),
                 nullable=False,
                 server_default='ORDERED',
@@ -123,6 +140,7 @@ def upgrade() -> None:
                     'INSUFFICIENT',
                     'CONTAMINATED',
                     name='samplecondition',
+                    create_type=False,
                 ),
                 nullable=False,
                 server_default='ACCEPTABLE',
@@ -149,7 +167,7 @@ def upgrade() -> None:
             sa.Column('reference_range', sa.String(length=255), nullable=True),
             sa.Column(
                 'result_flag',
-                sa.Enum('NORMAL', 'LOW', 'HIGH', 'CRITICAL', name='resultflag'),
+                sa.Enum('NORMAL', 'LOW', 'HIGH', 'CRITICAL', name='resultflag', create_type=False),
                 nullable=False,
                 server_default='NORMAL',
             ),

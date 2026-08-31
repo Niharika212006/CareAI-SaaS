@@ -18,7 +18,25 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+def ensure_enum(enum_name: str, values: list) -> None:
+    """Safely create PostgreSQL ENUM type if it does not already exist."""
+    bind = op.get_bind()
+    if bind.engine.name == "postgresql":
+        with op.get_context().autocommit_block():
+            check_sql = sa.text("SELECT 1 FROM pg_type WHERE typname = :name")
+            exists = bind.execute(check_sql, {"name": enum_name}).scalar()
+            if not exists:
+                vals_str = ", ".join(f"'{v}'" for v in values)
+                bind.execute(sa.text(f"CREATE TYPE {enum_name} AS ENUM ({vals_str})"))
+
+
 def upgrade() -> None:
+    # 0. Ensure PostgreSQL enum types exist without duplicate creation
+    ensure_enum('userrole', ['PATIENT', 'DOCTOR', 'ADMIN', 'LAB_TECHNICIAN', 'PHARMACY_STAFF'])
+    ensure_enum('doctorapprovalstatus', ['PENDING', 'APPROVED', 'REJECTED'])
+    ensure_enum('appointmentstatus', ['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED', 'REJECTED'])
+    ensure_enum('interactionseverity', ['NONE', 'LOW', 'MODERATE', 'HIGH', 'CRITICAL'])
+
     # 1. users table
     op.create_table(
         'users',
@@ -27,7 +45,7 @@ def upgrade() -> None:
         sa.Column('hashed_password', sa.String(length=255), nullable=False),
         sa.Column('full_name', sa.String(length=255), nullable=False),
         sa.Column('phone_number', sa.String(length=50), nullable=True),
-        sa.Column('role', sa.Enum('PATIENT', 'DOCTOR', 'ADMIN', 'LAB_TECHNICIAN', 'PHARMACY_STAFF', name='userrole'), nullable=False),
+        sa.Column('role', sa.Enum('PATIENT', 'DOCTOR', 'ADMIN', 'LAB_TECHNICIAN', 'PHARMACY_STAFF', name='userrole', create_type=False), nullable=False),
         sa.Column('is_active', sa.Boolean(), nullable=False, server_default=sa.text('true')),
         sa.Column('is_verified', sa.Boolean(), nullable=False, server_default=sa.text('false')),
         sa.Column('created_at', sa.DateTime(), nullable=False),
@@ -69,7 +87,7 @@ def upgrade() -> None:
         sa.Column('bio', sa.Text(), nullable=True),
         sa.Column('hospital_affiliation', sa.String(length=255), nullable=True),
         sa.Column('consultation_fee', sa.Numeric(precision=10, scale=2), nullable=False, server_default=sa.text('0.00')),
-        sa.Column('approval_status', sa.Enum('PENDING', 'APPROVED', 'REJECTED', name='doctorapprovalstatus'), nullable=False),
+        sa.Column('approval_status', sa.Enum('PENDING', 'APPROVED', 'REJECTED', name='doctorapprovalstatus', create_type=False), nullable=False),
         sa.Column('rejection_reason', sa.Text(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.Column('updated_at', sa.DateTime(), nullable=False),
@@ -90,7 +108,7 @@ def upgrade() -> None:
         sa.Column('doctor_id', sa.Integer(), nullable=False),
         sa.Column('scheduled_start', sa.DateTime(), nullable=False),
         sa.Column('scheduled_end', sa.DateTime(), nullable=False),
-        sa.Column('status', sa.Enum('PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED', 'REJECTED', name='appointmentstatus'), nullable=False),
+        sa.Column('status', sa.Enum('PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED', 'REJECTED', name='appointmentstatus', create_type=False), nullable=False),
         sa.Column('reason_for_visit', sa.Text(), nullable=True),
         sa.Column('patient_notes', sa.Text(), nullable=True),
         sa.Column('doctor_notes', sa.Text(), nullable=True),
@@ -157,7 +175,7 @@ def upgrade() -> None:
         sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
         sa.Column('prescription_id', sa.Integer(), nullable=True),
         sa.Column('analyzed_by_user_id', sa.Integer(), nullable=True),
-        sa.Column('overall_risk_level', sa.Enum('NONE', 'LOW', 'MODERATE', 'HIGH', 'CRITICAL', name='interactionseverity'), nullable=False),
+        sa.Column('overall_risk_level', sa.Enum('NONE', 'LOW', 'MODERATE', 'HIGH', 'CRITICAL', name='interactionseverity', create_type=False), nullable=False),
         sa.Column('clinical_summary', sa.Text(), nullable=False),
         sa.Column('ai_recommendations', sa.Text(), nullable=True),
         sa.Column('drug_drug_interactions', sa.JSON(), nullable=True),
