@@ -18,23 +18,13 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-def ensure_enum(enum_name: str, values: list) -> None:
-    bind = op.get_bind()
-    if bind.engine.name == "postgresql":
-        with op.get_context().autocommit_block():
-            check_sql = sa.text("SELECT 1 FROM pg_type WHERE typname = :name")
-            exists = bind.execute(check_sql, {"name": enum_name}).scalar()
-            if not exists:
-                vals_str = ", ".join(f"'{v}'" for v in values)
-                bind.execute(sa.text(f"CREATE TYPE {enum_name} AS ENUM ({vals_str})"))
-
-
 def upgrade() -> None:
-    conn = op.get_bind()
-    inspector = sa.inspect(conn)
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
     tables = inspector.get_table_names()
 
-    ensure_enum('documenttype', ['LAB_REPORT', 'IMAGING', 'PRESCRIPTION', 'DISCHARGE_SUMMARY', 'MEDICAL_CERTIFICATE', 'OTHER'])
+    if bind.engine.name == "postgresql":
+        postgresql.ENUM('LAB_REPORT', 'IMAGING', 'PRESCRIPTION', 'DISCHARGE_SUMMARY', 'MEDICAL_CERTIFICATE', 'OTHER', name='documenttype').create(bind, checkfirst=True)
 
     if 'medical_documents' not in tables:
         op.create_table(

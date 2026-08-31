@@ -19,24 +19,15 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-def ensure_enum(enum_name: str, values: list) -> None:
-    """Safely create PostgreSQL ENUM type if it does not already exist in pg_type."""
-    bind = op.get_bind()
-    if bind.engine.name == "postgresql":
-        with op.get_context().autocommit_block():
-            check_sql = sa.text("SELECT 1 FROM pg_type WHERE typname = :name")
-            exists = bind.execute(check_sql, {"name": enum_name}).scalar()
-            if not exists:
-                vals_str = ", ".join(f"'{v}'" for v in values)
-                bind.execute(sa.text(f"CREATE TYPE {enum_name} AS ENUM ({vals_str})"))
-
-
 def upgrade() -> None:
+    bind = op.get_bind()
+
     # 0. Ensure PostgreSQL enum types exist without duplicate creation
-    ensure_enum('userrole', ['PATIENT', 'DOCTOR', 'ADMIN', 'LAB_TECHNICIAN', 'PHARMACY_STAFF'])
-    ensure_enum('doctorapprovalstatus', ['PENDING', 'APPROVED', 'REJECTED'])
-    ensure_enum('appointmentstatus', ['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED', 'REJECTED'])
-    ensure_enum('interactionseverity', ['NONE', 'LOW', 'MODERATE', 'HIGH', 'CRITICAL'])
+    if bind.engine.name == "postgresql":
+        postgresql.ENUM('PATIENT', 'DOCTOR', 'ADMIN', 'LAB_TECHNICIAN', 'PHARMACY_STAFF', name='userrole').create(bind, checkfirst=True)
+        postgresql.ENUM('PENDING', 'APPROVED', 'REJECTED', name='doctorapprovalstatus').create(bind, checkfirst=True)
+        postgresql.ENUM('PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED', 'REJECTED', name='appointmentstatus').create(bind, checkfirst=True)
+        postgresql.ENUM('NONE', 'LOW', 'MODERATE', 'HIGH', 'CRITICAL', name='interactionseverity').create(bind, checkfirst=True)
 
     # 1. users table
     op.create_table(

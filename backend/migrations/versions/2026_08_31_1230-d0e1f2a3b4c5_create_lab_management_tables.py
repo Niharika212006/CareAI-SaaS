@@ -18,26 +18,16 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-def ensure_enum(enum_name: str, values: list) -> None:
-    bind = op.get_bind()
-    if bind.engine.name == "postgresql":
-        with op.get_context().autocommit_block():
-            check_sql = sa.text("SELECT 1 FROM pg_type WHERE typname = :name")
-            exists = bind.execute(check_sql, {"name": enum_name}).scalar()
-            if not exists:
-                vals_str = ", ".join(f"'{v}'" for v in values)
-                bind.execute(sa.text(f"CREATE TYPE {enum_name} AS ENUM ({vals_str})"))
-
-
 def upgrade() -> None:
     conn = op.get_bind()
     inspector = sa.inspect(conn)
     tables = inspector.get_table_names()
 
-    ensure_enum('laborderpriority', ['ROUTINE', 'URGENT', 'STAT'])
-    ensure_enum('laborderstatus', ['ORDERED', 'SAMPLE_PENDING', 'SAMPLE_COLLECTED', 'IN_PROGRESS', 'RESULTS_ENTERED', 'VERIFIED', 'RELEASED', 'CANCELLED'])
-    ensure_enum('samplecondition', ['ACCEPTABLE', 'HEMOLYZED', 'CLOTTED', 'INSUFFICIENT', 'CONTAMINATED'])
-    ensure_enum('resultflag', ['NORMAL', 'LOW', 'HIGH', 'CRITICAL'])
+    if conn.engine.name == "postgresql":
+        postgresql.ENUM('ROUTINE', 'URGENT', 'STAT', name='laborderpriority').create(conn, checkfirst=True)
+        postgresql.ENUM('ORDERED', 'SAMPLE_PENDING', 'SAMPLE_COLLECTED', 'IN_PROGRESS', 'RESULTS_ENTERED', 'VERIFIED', 'RELEASED', 'CANCELLED', name='laborderstatus').create(conn, checkfirst=True)
+        postgresql.ENUM('ACCEPTABLE', 'HEMOLYZED', 'CLOTTED', 'INSUFFICIENT', 'CONTAMINATED', name='samplecondition').create(conn, checkfirst=True)
+        postgresql.ENUM('NORMAL', 'LOW', 'HIGH', 'CRITICAL', name='resultflag').create(conn, checkfirst=True)
 
     # 1. Create lab_tests table
     if 'lab_tests' not in tables:
