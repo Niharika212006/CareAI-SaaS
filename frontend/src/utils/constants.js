@@ -32,15 +32,26 @@ export const INTERACTION_SEVERITY = {
   CRITICAL: 'CRITICAL',
 };
 
-export const API_BASE_URL =
+const rawApiUrl =
   (typeof import.meta !== 'undefined' &&
     import.meta.env &&
     (import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL)) ||
-  (typeof window !== 'undefined' &&
-  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') &&
-  window.location.port === '5173'
-    ? 'http://127.0.0.1:8000/api/v1'
-    : '/api/v1');
+  '';
+
+export const API_BASE_URL = (() => {
+  if (rawApiUrl) {
+    const trimmed = rawApiUrl.trim().replace(/\/+$/, '');
+    return trimmed.endsWith('/api/v1') ? trimmed : `${trimmed}/api/v1`;
+  }
+  if (
+    typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') &&
+    window.location.port === '5173'
+  ) {
+    return 'http://127.0.0.1:8000/api/v1';
+  }
+  return '/api/v1';
+})();
 
 export const STORAGE_KEYS = {
   AUTH_TOKEN: 'healthcare_auth_token',
