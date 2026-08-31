@@ -53,11 +53,11 @@ export function AppRoutes() {
         <Route index element={<NotificationsPage />} />
       </Route>
 
-      {/* Protected Patient Routes */}
+      {/* Strict Protected Patient Routes */}
       <Route
         path="/patient"
         element={
-          <ProtectedRoute allowedRoles={[USER_ROLES.PATIENT, USER_ROLES.ADMIN]}>
+          <ProtectedRoute allowedRoles={[USER_ROLES.PATIENT]}>
             <DashboardLayout />
           </ProtectedRoute>
         }
@@ -73,11 +73,11 @@ export function AppRoutes() {
         <Route path="notifications" element={<NotificationsPage />} />
       </Route>
 
-      {/* Protected Doctor Routes */}
+      {/* Strict Protected Doctor Routes */}
       <Route
         path="/doctor"
         element={
-          <ProtectedRoute allowedRoles={[USER_ROLES.DOCTOR, USER_ROLES.ADMIN]}>
+          <ProtectedRoute allowedRoles={[USER_ROLES.DOCTOR]}>
             <DashboardLayout />
           </ProtectedRoute>
         }
@@ -93,7 +93,7 @@ export function AppRoutes() {
         <Route path="notifications" element={<NotificationsPage />} />
       </Route>
 
-      {/* Protected Admin Routes */}
+      {/* Strict Protected Admin Routes */}
       <Route
         path="/admin"
         element={

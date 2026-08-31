@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogIn, Activity, AlertCircle } from 'lucide-react';
+import { LogIn, Activity, AlertCircle, Sparkles, User, Stethoscope, Shield } from 'lucide-react';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import useAuth from '../../hooks/useAuth';
@@ -12,30 +12,61 @@ export function LoginPage() {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const { login } = useAuth();
+  const { login, isAuthenticated, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
+  // If already authenticated, redirect to appropriate role dashboard
+  useEffect(() => {
+    if (isAuthenticated && !authLoading && user) {
+      if (user.role === USER_ROLES.DOCTOR) {
+        navigate('/doctor/dashboard', { replace: true });
+      } else if (user.role === USER_ROLES.ADMIN) {
+        navigate('/admin/dashboard', { replace: true });
+      } else {
+        navigate('/patient/dashboard', { replace: true });
+      }
+    }
+  }, [isAuthenticated, authLoading, user, navigate]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!email.trim() || !password.trim()) {
+      setError('Please enter both email and password.');
+      return;
+    }
+
     setError(null);
     setLoading(true);
 
     try {
-      const user = await login({ email, password });
-      // Redirect based on user role
-      if (user.role === USER_ROLES.DOCTOR) {
-        navigate('/doctor/dashboard');
-      } else if (user.role === USER_ROLES.ADMIN) {
-        navigate('/admin/dashboard');
+      const authUser = await login({ email: email.trim(), password });
+      
+      // Determine redirection target
+      const fromPath = location.state?.from?.pathname;
+      let targetPath = '/patient/dashboard';
+
+      if (authUser.role === USER_ROLES.DOCTOR) {
+        targetPath = fromPath && fromPath.startsWith('/doctor') ? fromPath : '/doctor/dashboard';
+      } else if (authUser.role === USER_ROLES.ADMIN) {
+        targetPath = fromPath && fromPath.startsWith('/admin') ? fromPath : '/admin/dashboard';
       } else {
-        navigate('/patient/dashboard');
+        targetPath = fromPath && fromPath.startsWith('/patient') ? fromPath : '/patient/dashboard';
       }
+
+      navigate(targetPath, { replace: true });
     } catch (err) {
-      setError(err.message || 'Login failed. Please check your credentials.');
+      console.error('Login error:', err);
+      setError(err.message || 'Login failed. Please verify your credentials.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleQuickFill = (demoEmail, demoPassword) => {
+    setEmail(demoEmail);
+    setPassword(demoPassword);
+    setError(null);
   };
 
   return (
@@ -52,14 +83,66 @@ export function LoginPage() {
             alignItems: 'center',
             justifyContent: 'center',
             marginBottom: '0.75rem',
+            boxShadow: 'var(--shadow-sm)',
           }}
         >
           <Activity size={24} />
         </div>
-        <h2 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>Welcome Back</h2>
+        <h2 style={{ fontSize: '1.5rem', marginBottom: '0.25rem', fontWeight: 800 }}>Welcome Back</h2>
         <p style={{ fontSize: '0.875rem', color: 'var(--secondary-500)' }}>
           Sign in to access your healthcare portal
         </p>
+      </div>
+
+      {/* Demo Credentials Quick Fill Bar */}
+      <div
+        style={{
+          background: 'var(--primary-50)',
+          border: '1px solid var(--primary-100)',
+          borderRadius: 'var(--radius-md)',
+          padding: '0.75rem',
+          marginBottom: '1.25rem',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.375rem',
+            fontSize: '0.75rem',
+            fontWeight: 700,
+            color: 'var(--primary-800)',
+            marginBottom: '0.5rem',
+          }}
+        >
+          <Sparkles size={13} /> Demo One-Click Fill:
+        </div>
+        <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+            onClick={() => handleQuickFill('patient.john@example.com', 'PatientPass123!')}
+          >
+            <User size={12} /> Patient
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+            onClick={() => handleQuickFill('dr.sarah@careai.com', 'DoctorPass123!')}
+          >
+            <Stethoscope size={12} /> Doctor
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+            onClick={() => handleQuickFill('admin@careai.com', 'AdminPass123!')}
+          >
+            <Shield size={12} /> Admin
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -91,6 +174,7 @@ export function LoginPage() {
             className="form-input"
             placeholder="name@example.com"
             value={email}
+            disabled={loading}
             onChange={(e) => setEmail(e.target.value)}
           />
         </div>
@@ -103,6 +187,7 @@ export function LoginPage() {
             className="form-input"
             placeholder="••••••••"
             value={password}
+            disabled={loading}
             onChange={(e) => setPassword(e.target.value)}
           />
         </div>

@@ -17,8 +17,21 @@ export function RegisterPage() {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const { register } = useAuth();
+  const { register, isAuthenticated, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+
+  // If already authenticated, redirect to appropriate role dashboard
+  React.useEffect(() => {
+    if (isAuthenticated && !authLoading && user) {
+      if (user.role === USER_ROLES.DOCTOR) {
+        navigate('/doctor/dashboard', { replace: true });
+      } else if (user.role === USER_ROLES.ADMIN) {
+        navigate('/admin/dashboard', { replace: true });
+      } else {
+        navigate('/patient/dashboard', { replace: true });
+      }
+    }
+  }, [isAuthenticated, authLoading, user, navigate]);
 
   const handleChange = (e) => {
     setFormData((prev) => ({

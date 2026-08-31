@@ -38,12 +38,26 @@ class ApiClient {
       if (response.status === 401 && !endpoint.includes('/auth/login')) {
         localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
         localStorage.removeItem(STORAGE_KEYS.USER_DATA);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+        }
       }
 
       const data = await response.json().catch(() => null);
 
       if (!response.ok) {
-        const errorMessage = data?.detail || data?.message || `Request failed with status ${response.status}`;
+        let errorMessage = `Request failed with status ${response.status}`;
+        if (data?.detail) {
+          if (Array.isArray(data.detail)) {
+            errorMessage = data.detail.map((err) => err.msg || JSON.stringify(err)).join(', ');
+          } else if (typeof data.detail === 'string') {
+            errorMessage = data.detail;
+          } else {
+            errorMessage = JSON.stringify(data.detail);
+          }
+        } else if (data?.message) {
+          errorMessage = data.message;
+        }
         const error = new Error(errorMessage);
         error.status = response.status;
         error.data = data;
