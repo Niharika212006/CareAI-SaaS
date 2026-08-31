@@ -10,6 +10,7 @@ from app.models.availability import DoctorAvailability, DoctorUnavailableDate
 from app.models.notification import Notification, NotificationType, NotificationPriority
 from app.models.medical_document import MedicalDocument, DocumentType
 from app.models.document_analysis import MedicalDocumentAnalysis, AnalysisStatus
+from app.models.ai_assistant import AIConversation, AIMessage
 
 __all__ = [
     "TimeStampedModel",
@@ -33,4 +34,6 @@ __all__ = [
     "DocumentType",
     "MedicalDocumentAnalysis",
     "AnalysisStatus",
+    "AIConversation",
+    "AIMessage",
 ]
