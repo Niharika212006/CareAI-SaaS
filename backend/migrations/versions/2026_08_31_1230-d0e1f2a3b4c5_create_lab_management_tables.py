@@ -158,7 +158,7 @@ def upgrade() -> None:
             sa.Column('verified_by_user_id', sa.Integer(), nullable=True),
             sa.Column('verified_at', sa.DateTime(), nullable=True),
             sa.Column('verification_notes', sa.Text(), nullable=True),
-            sa.Column('is_critical', sa.Boolean(), nullable=False, server_default=sa.text('0')),
+            sa.Column('is_critical', sa.Boolean(), nullable=False, server_default=sa.text('false')),
             sa.ForeignKeyConstraint(['entered_by_user_id'], ['users.id']),
             sa.ForeignKeyConstraint(['lab_order_item_id'], ['lab_order_items.id'], ondelete='CASCADE'),
             sa.ForeignKeyConstraint(['verified_by_user_id'], ['users.id']),

@@ -29,7 +29,7 @@ def upgrade() -> None:
             sa.Column('user_id', sa.Integer(), nullable=False),
             sa.Column(
                 'role',
-                sa.Enum('PATIENT', 'DOCTOR', 'ADMIN', 'LAB_TECHNICIAN', 'PHARMACY_STAFF', name='userrole'),
+                sa.Enum('PATIENT', 'DOCTOR', 'ADMIN', 'LAB_TECHNICIAN', 'PHARMACY_STAFF', name='userrole', create_type=False),
                 nullable=False,
             ),
             sa.Column('title', sa.String(length=255), nullable=False, server_default='New Conversation'),
