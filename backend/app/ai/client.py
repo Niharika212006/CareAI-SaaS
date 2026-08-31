@@ -1,4 +1,5 @@
 """Modular AI Client integrating official Google GenAI and external LLM providers."""
+import os
 import logging
 from typing import Optional
 from app.core.config import settings
@@ -21,16 +22,47 @@ class AIClient:
 
     def __init__(self) -> None:
         self.provider = (settings.AI_PROVIDER or "gemini").lower()
-        self.gemini_key = settings.GEMINI_API_KEY
-        self.openai_key = settings.OPENAI_API_KEY
-        self.model_name = settings.AI_MODEL_NAME or "gemini-1.5-flash"
+
+    def _get_gemini_key(self) -> str:
+        key = (
+            settings.GEMINI_API_KEY
+            or os.getenv("GEMINI_API_KEY")
+            or os.getenv("GOOGLE_API_KEY")
+            or os.getenv("GOOGLE_GENAI_API_KEY")
+            or ""
+        ).strip()
+        if not key or key.startswith("your-") or "placeholder" in key.lower():
+            return ""
+        return key
+
+    def _get_openai_key(self) -> str:
+        key = (
+            settings.OPENAI_API_KEY
+            or os.getenv("OPENAI_API_KEY")
+            or ""
+        ).strip()
+        if not key or key.startswith("your-") or "placeholder" in key.lower():
+            return ""
+        return key
+
+    def _get_model_name(self) -> str:
+        return (
+            os.getenv("AI_MODEL_NAME")
+            or settings.AI_MODEL_NAME
+            or "gemini-1.5-flash"
+        ).strip()
+
+    @property
+    def model_name(self) -> str:
+        return self._get_model_name()
 
     def is_configured(self) -> bool:
         """Check if active credentials exist for the configured AI provider."""
-        if self.provider == "gemini":
-            return bool(self.gemini_key and len(self.gemini_key.strip()) > 0)
-        elif self.provider == "openai":
-            return bool(self.openai_key and len(self.openai_key.strip()) > 0)
+        provider = (os.getenv("AI_PROVIDER") or settings.AI_PROVIDER or "gemini").lower()
+        if provider == "gemini":
+            return bool(self._get_gemini_key())
+        elif provider == "openai":
+            return bool(self._get_openai_key())
         return False
 
     def generate_completion(
@@ -44,28 +76,32 @@ class AIClient:
         Raises AIProviderUnavailableError if credentials are missing or the API call fails.
         Raises AIInvalidResponseError if output is empty.
         """
+        provider = (os.getenv("AI_PROVIDER") or settings.AI_PROVIDER or "gemini").lower()
+
         if not self.is_configured():
             logger.warning(
-                f"AI Provider '{self.provider}' is active but no API key is configured."
+                f"AI Provider '{provider}' is active but no valid API key is configured in environment."
             )
             raise AIProviderUnavailableError(
-                f"AI analysis provider '{self.provider}' is not configured on the server."
+                f"AI analysis provider '{provider}' is not configured on the server."
             )
 
-        if self.provider == "gemini":
+        if provider == "gemini":
             return self._call_gemini(system_prompt, user_prompt, response_mime_type)
-        elif self.provider == "openai":
+        elif provider == "openai":
             return self._call_openai(system_prompt, user_prompt, response_mime_type)
         else:
-            raise AIProviderUnavailableError(f"Unsupported AI provider: {self.provider}")
+            raise AIProviderUnavailableError(f"Unsupported AI provider: {provider}")
 
     def _call_gemini(self, system_prompt: str, user_prompt: str, response_mime_type: str) -> str:
         """Execute real API call using the official Google GenAI SDK."""
+        key = self._get_gemini_key()
+        model = self._get_model_name()
         try:
             from google import genai
             from google.genai import types
 
-            client = genai.Client(api_key=self.gemini_key)
+            client = genai.Client(api_key=key)
             
             config = types.GenerateContentConfig(
                 system_instruction=system_prompt,
@@ -74,7 +110,7 @@ class AIClient:
             )
 
             response = client.models.generate_content(
-                model=self.model_name,
+                model=model,
                 contents=user_prompt,
                 config=config,
             )
@@ -87,9 +123,9 @@ class AIClient:
         except AIInvalidResponseError:
             raise
         except Exception as err:
-            logger.error(f"Gemini API execution failure on model '{self.model_name}': {err}")
+            logger.error(f"Gemini API execution failure on model '{model}': {err}")
             raise AIProviderUnavailableError(
-                "Gemini AI provider is currently unreachable or encountered an error."
+                f"Gemini AI provider is currently unreachable or encountered an error on model '{model}'."
             ) from err
 
     def _call_openai(self, system_prompt: str, user_prompt: str, response_mime_type: str) -> str:

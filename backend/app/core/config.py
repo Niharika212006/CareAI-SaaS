@@ -29,7 +29,12 @@ class Settings(BaseSettings):
 
     # AI Configuration
     AI_PROVIDER: str = os.getenv("AI_PROVIDER", "gemini")
-    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+    GEMINI_API_KEY: str = (
+        os.getenv("GEMINI_API_KEY")
+        or os.getenv("GOOGLE_API_KEY")
+        or os.getenv("GOOGLE_GENAI_API_KEY")
+        or ""
+    )
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
     AI_MODEL_NAME: str = os.getenv("AI_MODEL_NAME", "gemini-1.5-flash")
 
@@ -41,7 +46,7 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(
         case_sensitive=True,
-        env_file=".env",
+        env_file=(".env", "../.env"),
         env_file_encoding="utf-8",
         extra="ignore",
     )
