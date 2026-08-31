@@ -28,8 +28,8 @@ def upgrade() -> None:
         sa.Column('full_name', sa.String(length=255), nullable=False),
         sa.Column('phone_number', sa.String(length=50), nullable=True),
         sa.Column('role', sa.Enum('PATIENT', 'DOCTOR', 'ADMIN', 'LAB_TECHNICIAN', 'PHARMACY_STAFF', name='userrole'), nullable=False),
-        sa.Column('is_active', sa.Boolean(), nullable=False, server_default=sa.text('1')),
-        sa.Column('is_verified', sa.Boolean(), nullable=False, server_default=sa.text('0')),
+        sa.Column('is_active', sa.Boolean(), nullable=False, server_default=sa.text('true')),
+        sa.Column('is_verified', sa.Boolean(), nullable=False, server_default=sa.text('false')),
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.Column('updated_at', sa.DateTime(), nullable=False),
         sa.PrimaryKeyConstraint('id')
