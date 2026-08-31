@@ -38,19 +38,32 @@ def seed_database():
         # -------------------------------------------------------------
         # 1. Platform Administrator
         # -------------------------------------------------------------
-        admin = db.query(User).filter(User.email == "admin@careai.com").first()
+        admin = db.query(User).filter(User.email == "pillu.212006@gmail.com").first()
         if not admin:
-            admin = User(
-                email="admin@careai.com",
-                hashed_password=get_password_hash("AdminPass123!"),
-                full_name="Chief Medical Admin",
-                role=UserRole.ADMIN,
-                is_active=True,
-                is_verified=True,
-            )
-            db.add(admin)
+            # Check legacy admin and update or create
+            legacy_admin = db.query(User).filter(User.email == "admin@careai.com").first()
+            if legacy_admin:
+                legacy_admin.email = "pillu.212006@gmail.com"
+                legacy_admin.hashed_password = get_password_hash("Neha@6328")
+                admin = legacy_admin
+                db.flush()
+                print("  [OK] Admin updated: pillu.212006@gmail.com / Neha@6328")
+            else:
+                admin = User(
+                    email="pillu.212006@gmail.com",
+                    hashed_password=get_password_hash("Neha@6328"),
+                    full_name="Chief Medical Admin",
+                    role=UserRole.ADMIN,
+                    is_active=True,
+                    is_verified=True,
+                )
+                db.add(admin)
+                db.flush()
+                print("  [OK] Admin created: pillu.212006@gmail.com / Neha@6328")
+        else:
+            admin.hashed_password = get_password_hash("Neha@6328")
             db.flush()
-            print("  [OK] Admin created: admin@careai.com / AdminPass123!")
+            print("  [OK] Admin password refreshed: pillu.212006@gmail.com / Neha@6328")
 
         # -------------------------------------------------------------
         # 1b. Lab Technician
@@ -919,7 +932,7 @@ def seed_database():
             },
             # Admin
             {
-                "user_email": "admin@careai.com",
+                "user_email": "pillu.212006@gmail.com",
                 "title": "Doctor Application Pending Review",
                 "message": "Dr. John Watson (Pulmonology) has submitted medical credentials awaiting verification.",
                 "type": NotificationType.DOCTOR_APPROVAL,

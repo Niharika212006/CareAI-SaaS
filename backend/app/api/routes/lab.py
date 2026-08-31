@@ -308,12 +308,14 @@ def get_lab_queue_stats(
 
 
 @router.get("/admin-stats", response_model=LabAdminStats)
+@router.get("/admin/stats", response_model=LabAdminStats)
 def get_admin_lab_stats(
     db: Session = Depends(get_db),
     admin_user: User = Depends(get_current_admin_user),
 ):
     """Retrieve aggregated diagnostic analytics for platform administration."""
     return lab_service.get_admin_lab_stats(db=db)
+
 
 
 @router.post("/orders/{order_id}/collect-sample", response_model=LabSampleRead)

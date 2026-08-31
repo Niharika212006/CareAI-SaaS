@@ -146,7 +146,7 @@ export function LoginPage() {
             type="button"
             className="btn btn-secondary"
             style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-            onClick={() => handleQuickFill('admin@careai.com', 'AdminPass123!')}
+            onClick={() => handleQuickFill('pillu.212006@gmail.com', 'Neha@6328')}
           >
             <Shield size={12} /> Admin
           </button>

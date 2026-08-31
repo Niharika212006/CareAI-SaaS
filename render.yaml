@@ -1,0 +1,46 @@
+# ==============================================================================
+# Render Blueprint Specification for CareAI Healthcare SaaS Platform
+# ==============================================================================
+services:
+  - type: web
+    name: careai-backend
+    runtime: python
+    region: oregon
+    plan: free
+    branch: main
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt && alembic upgrade head
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.9
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "1440"
+      - key: ALLOWED_ORIGINS
+        value: https://careai.vercel.app
+      - key: DATABASE_URL
+        fromDatabase:
+          name: careai-postgres
+          property: connectionString
+      - key: AI_PROVIDER
+        value: gemini
+      - key: AI_MODEL_NAME
+        value: gemini-1.5-flash
+      - key: GEMINI_API_KEY
+        sync: false
+
+databases:
+  - name: careai-postgres
+    region: oregon
+    plan: free
+    databaseName: careai_db
+    user: careai_user

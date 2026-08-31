@@ -475,9 +475,10 @@ def test_successful_analysis_creates_in_app_notification(client: TestClient, db_
         title="Complete Blood Profile",
     )
 
-    client.post(f"/api/v1/medical-documents/{doc.id}/analyze", headers=get_token_header(patient))
+    res = client.post(f"/api/v1/medical-documents/{doc.id}/analyze", headers=get_token_header(patient))
+    assert res.status_code == 200
 
-    notif = db_session.query(Notification).filter(Notification.user_id == patient.id).order_by(Notification.created_at.desc()).first()
+    notif = db_session.query(Notification).filter(Notification.user_id == patient.id).order_by(Notification.id.desc()).first()
     assert notif is not None
     assert "Analysis Ready" in notif.title
     assert "Complete Blood Profile" in notif.message

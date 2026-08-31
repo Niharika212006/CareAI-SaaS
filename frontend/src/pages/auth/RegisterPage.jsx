@@ -7,6 +7,7 @@ import useAuth from '../../hooks/useAuth';
 import { USER_ROLES } from '../../utils/constants';
 
 export function RegisterPage() {
+  const [countryCode, setCountryCode] = useState('+91');
   const [formData, setFormData] = useState({
     full_name: '',
     email: '',
@@ -50,7 +51,15 @@ export function RegisterPage() {
     setLoading(true);
 
     try {
-      const regUser = await register(formData);
+      const payload = {
+        ...formData,
+        phone_number: formData.phone_number?.trim()
+          ? (formData.phone_number.trim().startsWith('+')
+              ? formData.phone_number.trim()
+              : `${countryCode} ${formData.phone_number.trim()}`)
+          : null,
+      };
+      const regUser = await register(payload);
       if (regUser.role === USER_ROLES.DOCTOR) {
         navigate('/doctor/dashboard', { replace: true });
       } else if (regUser.role === USER_ROLES.ADMIN) {
@@ -83,6 +92,7 @@ export function RegisterPage() {
             alignItems: 'center',
             justifyContent: 'center',
             marginBottom: '0.75rem',
+            boxShadow: 'var(--shadow-sm)',
           }}
         >
           <Activity size={24} />
@@ -162,14 +172,29 @@ export function RegisterPage() {
 
         <div className="form-group">
           <label className="form-label">Phone Number (Optional)</label>
-          <input
-            type="tel"
-            name="phone_number"
-            className="form-input"
-            placeholder="+1 (555) 000-0000"
-            value={formData.phone_number}
-            onChange={handleChange}
-          />
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <select
+              value={countryCode}
+              onChange={(e) => setCountryCode(e.target.value)}
+              className="form-input"
+              style={{ width: '100px', fontWeight: 600, paddingLeft: '0.5rem', paddingRight: '0.5rem' }}
+            >
+              <option value="+91">+91 (IN)</option>
+              <option value="+1">+1 (US)</option>
+              <option value="+44">+44 (UK)</option>
+              <option value="+61">+61 (AU)</option>
+              <option value="+971">+971 (AE)</option>
+            </select>
+            <input
+              type="tel"
+              name="phone_number"
+              className="form-input"
+              style={{ flex: 1 }}
+              placeholder="98765 43210"
+              value={formData.phone_number}
+              onChange={handleChange}
+            />
+          </div>
         </div>
 
         <div className="form-group">

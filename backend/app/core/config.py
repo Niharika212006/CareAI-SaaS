@@ -1,6 +1,7 @@
 """Application Configuration Module."""
 import os
 from typing import List, Union
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -18,6 +19,24 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./healthcare_dev.db")
+
+    @field_validator("DATABASE_URL", mode="after")
+    @classmethod
+    def normalize_database_url(cls, v: str) -> str:
+        """Safely normalize postgres:// to postgresql:// for SQLAlchemy 2.0 while preserving SQLite/PostgreSQL."""
+        if not v:
+            return "sqlite:///./healthcare_dev.db"
+        clean_url = v.strip()
+        if clean_url.startswith("postgres://"):
+            return clean_url.replace("postgres://", "postgresql://", 1)
+        return clean_url
+
+    def get_database_url(self) -> str:
+        """Return clean database URL compatible with SQLAlchemy 2.0."""
+        url = self.DATABASE_URL.strip() if self.DATABASE_URL else "sqlite:///./healthcare_dev.db"
+        if url.startswith("postgres://"):
+            return url.replace("postgres://", "postgresql://", 1)
+        return url
 
     # CORS
     ALLOWED_ORIGINS: Union[List[str], str] = [

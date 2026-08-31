@@ -18,6 +18,7 @@ import {
   UserPlus,
   Zap,
   X,
+  FlaskConical,
 } from 'lucide-react';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';

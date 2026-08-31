@@ -45,9 +45,10 @@ app.add_middleware(
 )
 
 
+@app.get("/health", tags=["Health"])
 @app.get("/api/health", tags=["Health"])
 def health_check():
-    """Health check endpoint for container probes and monitoring."""
+    """Health check endpoint for container probes and cloud monitoring."""
     return {
         "status": "healthy",
         "service": settings.PROJECT_NAME,
