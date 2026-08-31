@@ -16,8 +16,10 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Set database URL dynamically from app settings
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+# Set database URL dynamically from app settings unless explicitly overridden in config
+custom_url = config.get_main_option("sqlalchemy.url")
+if not custom_url or custom_url.startswith("sqlite:///./healthcare_dev.db"):
+    config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 
 target_metadata = Base.metadata
 

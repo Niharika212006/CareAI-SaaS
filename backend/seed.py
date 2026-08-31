@@ -13,6 +13,7 @@ from app.models.appointment import Appointment, AppointmentStatus
 from app.models.prescription import Prescription, PrescriptionItem, PrescriptionStatus
 from app.models.ai_report import AIAnalysisReport, InteractionSeverity
 from app.models.medical_document import MedicalDocument, DocumentType
+from app.models.document_analysis import MedicalDocumentAnalysis, AnalysisStatus
 from app.models.notification import Notification, NotificationType, NotificationPriority
 from app.models.lab import (
     LabTest,
@@ -743,15 +744,27 @@ def seed_database():
                     document_type=DocumentType.LAB_REPORT,
                     description="Official diagnostic findings from annual cardiovascular screening.",
                     storage_key=storage_key,
-                    original_filename=sanitized_filename,
+                    file_name=sanitized_filename,
                     file_size=file_size,
                     mime_type=mime_type,
-                    ai_summary="Diagnostic panel confirms healthy cardiac rhythm and baseline lipids. Recommend routine dietary maintenance.",
-                    ai_analysis_status="COMPLETED",
                 )
                 db.add(doc1)
                 db.flush()
-                print("  [OK] Patient medical document created with physical file in storage.")
+
+                analysis1 = MedicalDocumentAnalysis(
+                    document_id=doc1.id,
+                    requested_by_user_id=john_prof.user_id,
+                    analysis_status=AnalysisStatus.COMPLETED,
+                    summary="Diagnostic panel confirms healthy cardiac rhythm and baseline lipids. Recommend routine dietary maintenance.",
+                    document_category="LAB_REPORT",
+                    key_findings=["Normal Sinus Rhythm", "Lipids within normal limits"],
+                    patient_friendly_explanation="Your cardiac diagnostic test results are within normal reference ranges.",
+                    recommended_next_step="Continue routine preventative checkups.",
+                    disclaimer="CareAI analysis is advisory and must be verified by a licensed clinician.",
+                )
+                db.add(analysis1)
+                db.flush()
+                print("  [OK] Patient medical document and analysis created.")
 
         # -------------------------------------------------------------
         # 7. Active Diagnostic Lab Orders in Multiple Stages
