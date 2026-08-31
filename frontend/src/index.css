@@ -292,3 +292,73 @@ h1, h2, h3, h4, h5, h6 {
 .animate-fade-in {
   animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+@keyframes ping {
+  75%, 100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+@keyframes bounceDot {
+  0%, 80%, 100% {
+    transform: scale(0);
+  }
+  40% {
+    transform: scale(1);
+  }
+}
+
+/* CareAI Assistant Styling */
+.typing-dot {
+  width: 6px;
+  height: 6px;
+  background-color: var(--primary-600);
+  border-radius: 50%;
+  display: inline-block;
+  animation: bounceDot 1.4s infinite ease-in-out both;
+}
+
+.ai-launcher-btn:hover {
+  transform: scale(1.08) translateY(-2px);
+  box-shadow: 0 12px 30px rgba(13, 148, 136, 0.45) !important;
+}
+
+.ai-launcher-btn:active {
+  transform: scale(0.96);
+}
+
+.suggestion-prompt-btn:hover {
+  background-color: var(--primary-50) !important;
+  border-color: var(--primary-200) !important;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md) !important;
+}
+
+.conversation-item:hover {
+  background-color: var(--secondary-100) !important;
+}
+
+.conversation-item:hover .delete-conv-btn {
+  opacity: 1 !important;
+}
+
+.delete-conv-btn:hover {
+  color: #e11d48 !important;
+  background-color: #ffe4e6 !important;
+}
+
+.chat-input-wrapper:focus-within {
+  border-color: var(--primary-600) !important;
+  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.15) !important;
+}
+
+@media (max-width: 768px) {
+  .hide-mobile {
+    display: none !important;
+  }
+  .conversation-sidebar {
+    width: 220px !important;
+  }
+}
+

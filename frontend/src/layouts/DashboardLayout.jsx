@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import Navbar from '../components/common/Navbar';
 import Sidebar from '../components/common/Sidebar';
 import Footer from '../components/common/Footer';
+import AIAssistantLauncher from '../components/ai-assistant/AIAssistantLauncher';
 
 export function DashboardLayout() {
   return (
@@ -17,6 +18,8 @@ export function DashboardLayout() {
           <Footer />
         </main>
       </div>
+      {/* Centralized Role-Aware CareAI Assistant Floating Launcher */}
+      <AIAssistantLauncher />
     </div>
   );
 }
