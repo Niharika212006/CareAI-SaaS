@@ -107,6 +107,7 @@ class AIClient:
                 system_instruction=system_prompt,
                 response_mime_type=response_mime_type,
                 temperature=0.1,
+                automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
             )
 
             response = client.models.generate_content(
