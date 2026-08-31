@@ -8,6 +8,8 @@ Create Date: 2026-08-31 12:15:00.000000
 from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
+
 
 # revision identifiers, used by Alembic.
 revision: str = 'c9d0e1f2a3b4'
@@ -42,7 +44,7 @@ def upgrade() -> None:
             sa.Column('user_id', sa.Integer(), nullable=False),
             sa.Column(
                 'role',
-                sa.Enum('PATIENT', 'DOCTOR', 'ADMIN', 'LAB_TECHNICIAN', 'PHARMACY_STAFF', name='userrole', create_type=False),
+                postgresql.ENUM('PATIENT', 'DOCTOR', 'ADMIN', 'LAB_TECHNICIAN', 'PHARMACY_STAFF', name='userrole', create_type=False),
                 nullable=False,
             ),
             sa.Column('title', sa.String(length=255), nullable=False, server_default='New Conversation'),

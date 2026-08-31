@@ -8,6 +8,8 @@ Create Date: 2026-08-31 12:30:00.000000
 from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
+
 
 # revision identifiers, used by Alembic.
 revision: str = 'd0e1f2a3b4c5'
@@ -72,13 +74,13 @@ def upgrade() -> None:
             sa.Column('clinical_notes', sa.Text(), nullable=True),
             sa.Column(
                 'priority',
-                sa.Enum('ROUTINE', 'URGENT', 'STAT', name='laborderpriority', create_type=False),
+                postgresql.ENUM('ROUTINE', 'URGENT', 'STAT', name='laborderpriority', create_type=False),
                 nullable=False,
                 server_default='ROUTINE',
             ),
             sa.Column(
                 'status',
-                sa.Enum(
+                postgresql.ENUM(
                     'ORDERED',
                     'SAMPLE_PENDING',
                     'SAMPLE_COLLECTED',
@@ -133,7 +135,7 @@ def upgrade() -> None:
             sa.Column('collected_at', sa.DateTime(), nullable=False),
             sa.Column(
                 'sample_condition',
-                sa.Enum(
+                postgresql.ENUM(
                     'ACCEPTABLE',
                     'HEMOLYZED',
                     'CLOTTED',
@@ -167,7 +169,7 @@ def upgrade() -> None:
             sa.Column('reference_range', sa.String(length=255), nullable=True),
             sa.Column(
                 'result_flag',
-                sa.Enum('NORMAL', 'LOW', 'HIGH', 'CRITICAL', name='resultflag', create_type=False),
+                postgresql.ENUM('NORMAL', 'LOW', 'HIGH', 'CRITICAL', name='resultflag', create_type=False),
                 nullable=False,
                 server_default='NORMAL',
             ),
@@ -196,7 +198,7 @@ def upgrade() -> None:
             sa.Column('lab_order_id', sa.Integer(), nullable=False),
             sa.Column('action', sa.String(length=100), nullable=False),
             sa.Column('performed_by_user_id', sa.Integer(), nullable=False),
-            sa.Column('details', sa.Text(), nullable=True),
+            sa.Column('details', sa.JSON(), nullable=True),
             sa.Column('created_at', sa.DateTime(), nullable=False),
             sa.ForeignKeyConstraint(['lab_order_id'], ['lab_orders.id'], ondelete='CASCADE'),
             sa.ForeignKeyConstraint(['performed_by_user_id'], ['users.id']),
@@ -213,14 +215,42 @@ def downgrade() -> None:
     tables = inspector.get_table_names()
 
     if 'lab_audit_events' in tables:
+        op.drop_index(op.f('ix_lab_audit_events_action'), table_name='lab_audit_events')
+        op.drop_index(op.f('ix_lab_audit_events_lab_order_id'), table_name='lab_audit_events')
+        op.drop_index(op.f('ix_lab_audit_events_id'), table_name='lab_audit_events')
         op.drop_table('lab_audit_events')
+
     if 'lab_results' in tables:
+        op.drop_index(op.f('ix_lab_results_is_critical'), table_name='lab_results')
+        op.drop_index(op.f('ix_lab_results_result_flag'), table_name='lab_results')
+        op.drop_index(op.f('ix_lab_results_lab_order_item_id'), table_name='lab_results')
+        op.drop_index(op.f('ix_lab_results_id'), table_name='lab_results')
         op.drop_table('lab_results')
+
     if 'lab_samples' in tables:
+        op.drop_index(op.f('ix_lab_samples_technician_id'), table_name='lab_samples')
+        op.drop_index(op.f('ix_lab_samples_lab_order_id'), table_name='lab_samples')
+        op.drop_index(op.f('ix_lab_samples_id'), table_name='lab_samples')
         op.drop_table('lab_samples')
+
     if 'lab_order_items' in tables:
+        op.drop_index(op.f('ix_lab_order_items_lab_test_id'), table_name='lab_order_items')
+        op.drop_index(op.f('ix_lab_order_items_lab_order_id'), table_name='lab_order_items')
+        op.drop_index(op.f('ix_lab_order_items_id'), table_name='lab_order_items')
         op.drop_table('lab_order_items')
+
     if 'lab_orders' in tables:
+        op.drop_index(op.f('ix_lab_orders_status'), table_name='lab_orders')
+        op.drop_index(op.f('ix_lab_orders_priority'), table_name='lab_orders')
+        op.drop_index(op.f('ix_lab_orders_doctor_id'), table_name='lab_orders')
+        op.drop_index(op.f('ix_lab_orders_patient_id'), table_name='lab_orders')
+        op.drop_index(op.f('ix_lab_orders_id'), table_name='lab_orders')
         op.drop_table('lab_orders')
+
     if 'lab_tests' in tables:
+        op.drop_index(op.f('ix_lab_tests_is_active'), table_name='lab_tests')
+        op.drop_index(op.f('ix_lab_tests_category'), table_name='lab_tests')
+        op.drop_index(op.f('ix_lab_tests_test_code'), table_name='lab_tests')
+        op.drop_index(op.f('ix_lab_tests_test_name'), table_name='lab_tests')
+        op.drop_index(op.f('ix_lab_tests_id'), table_name='lab_tests')
         op.drop_table('lab_tests')

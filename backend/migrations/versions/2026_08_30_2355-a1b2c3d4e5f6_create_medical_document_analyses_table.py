@@ -8,6 +8,7 @@ Create Date: 2026-08-30 23:55:00.000000
 from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 
 # revision identifiers, used by Alembic.
@@ -53,7 +54,7 @@ def upgrade() -> None:
             sa.Column('disclaimer', sa.Text(), nullable=False),
             sa.Column(
                 'analysis_status',
-                sa.Enum('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED', name='analysisstatus', create_type=False),
+                postgresql.ENUM('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED', name='analysisstatus', create_type=False),
                 nullable=False,
                 server_default='COMPLETED',
             ),
