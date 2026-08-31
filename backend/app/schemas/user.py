@@ -18,6 +18,15 @@ class UserCreate(UserBase):
     password: str
 
 
+class StaffCreate(BaseModel):
+    """Schema for administrative staff provisioning (LAB_TECHNICIAN, PHARMACY_STAFF, ADMIN)."""
+    email: EmailStr
+    full_name: str
+    password: str
+    phone_number: Optional[str] = None
+    role: UserRole = UserRole.LAB_TECHNICIAN
+
+
 class UserLogin(BaseModel):
     """Schema for user login credentials."""
     email: EmailStr

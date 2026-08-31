@@ -18,7 +18,28 @@ def test_frontend_auth():
     assert "detail" in r_invalid.json()
     print(f"  [PASS] 401 Unauthorized returned properly: '{r_invalid.json()['detail']}'")
 
-    print("\n=== 3. Testing Patient Auth & Dashboard API ===")
+    print("\n=== 3. Testing Public Self-Registration Security Restrictions ===")
+    # Attemping to register as privileged roles via public registration must return 403
+    r_pub_admin = httpx.post(
+        f"{base_url}/api/v1/auth/register",
+        json={"email": "attempt.admin@careai.com", "password": "Password123!", "full_name": "Fake Admin", "role": "ADMIN"},
+    )
+    assert r_pub_admin.status_code == 403, f"Expected 403, got {r_pub_admin.status_code}"
+    
+    r_pub_lab = httpx.post(
+        f"{base_url}/api/v1/auth/register",
+        json={"email": "attempt.lab@careai.com", "password": "Password123!", "full_name": "Fake Lab", "role": "LAB_TECHNICIAN"},
+    )
+    assert r_pub_lab.status_code == 403, f"Expected 403, got {r_pub_lab.status_code}"
+
+    r_pub_pharm = httpx.post(
+        f"{base_url}/api/v1/auth/register",
+        json={"email": "attempt.pharm@careai.com", "password": "Password123!", "full_name": "Fake Pharm", "role": "PHARMACY_STAFF"},
+    )
+    assert r_pub_pharm.status_code == 403, f"Expected 403, got {r_pub_pharm.status_code}"
+    print("  [PASS] Public registration properly blocks privileged role creation with HTTP 403.")
+
+    print("\n=== 4. Testing Patient Auth & Dashboard API ===")
     r_pat = httpx.post(
         f"{base_url}/api/v1/auth/login",
         json={"email": "patient.john@example.com", "password": "PatientPass123!"},
@@ -42,7 +63,7 @@ def test_frontend_auth():
     assert r_pat_dash.status_code == 200
     print("  [PASS] Patient login, token verification, and dashboard fetch succeeded.")
 
-    print("\n=== 4. Testing Doctor Auth & Dashboard API ===")
+    print("\n=== 5. Testing Doctor Auth & Dashboard API ===")
     r_doc = httpx.post(
         f"{base_url}/api/v1/auth/login",
         json={"email": "dr.sarah@careai.com", "password": "DoctorPass123!"},
@@ -66,7 +87,7 @@ def test_frontend_auth():
     assert r_doc_dash.status_code == 200
     print("  [PASS] Doctor login, token verification, and dashboard fetch succeeded.")
 
-    print("\n=== 5. Testing Admin Auth & Dashboard API ===")
+    print("\n=== 6. Testing Admin Auth, Staff Provisioning & Dashboard API ===")
     r_adm = httpx.post(
         f"{base_url}/api/v1/auth/login",
         json={"email": "admin@careai.com", "password": "AdminPass123!"},
@@ -90,7 +111,7 @@ def test_frontend_auth():
     assert r_adm_dash.status_code == 200
     print("  [PASS] Admin login, token verification, and dashboard fetch succeeded.")
 
-    print("\n=== 6. Testing Lab Technician Auth & Dashboard API ===")
+    print("\n=== 7. Testing Lab Technician Auth & Dashboard API ===")
     r_lab = httpx.post(
         f"{base_url}/api/v1/auth/login",
         json={"email": "lab.tech@careai.com", "password": "LabTechPass123!"},
@@ -114,7 +135,7 @@ def test_frontend_auth():
     assert r_lab_dash.status_code == 200
     print("  [PASS] Lab Technician login, token verification, and workspace dashboard fetch succeeded.")
 
-    print("\n=== 7. Testing Pharmacy Staff Auth & Dashboard API ===")
+    print("\n=== 8. Testing Pharmacy Staff Auth & Dashboard API ===")
     r_pharm = httpx.post(
         f"{base_url}/api/v1/auth/login",
         json={"email": "pharmacy.staff@careai.com", "password": "PharmacyPass123!"},
@@ -138,7 +159,7 @@ def test_frontend_auth():
     assert r_pharm_dash.status_code == 200
     print("  [PASS] Pharmacy Staff login, token verification, and dispensary dashboard fetch succeeded.")
 
-    print("\n=== 8. Testing 5-Role Cross-Access Authorization Restrictions ===")
+    print("\n=== 9. Testing 5-Role Cross-Access Authorization Restrictions ===")
     # Lab Tech cannot access Pharmacy or Admin
     assert httpx.get(f"{base_url}/api/v1/dashboard/pharmacy", headers={"Authorization": f"Bearer {lab_token}"}).status_code == 403
     assert httpx.get(f"{base_url}/api/v1/dashboard/admin", headers={"Authorization": f"Bearer {lab_token}"}).status_code == 403

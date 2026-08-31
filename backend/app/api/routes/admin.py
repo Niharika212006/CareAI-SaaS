@@ -8,11 +8,27 @@ from app.dependencies.auth import require_role
 from app.models.user import User, UserRole
 from app.models.doctor import DoctorProfile
 from app.schemas.doctor import DoctorProfileRead, DoctorApprovalUpdate
-from app.schemas.user import UserRead
+from app.schemas.user import UserRead, StaffCreate
 from app.services.doctor_service import doctor_service
 from app.services.user_service import user_service
+from app.services.auth_service import auth_service
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
+
+
+@router.post(
+    "/staff",
+    response_model=UserRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Provision a privileged staff user account",
+)
+def provision_staff_user(
+    staff_in: StaffCreate,
+    current_admin: User = Depends(require_role(UserRole.ADMIN)),
+    db: Session = Depends(get_db),
+) -> User:
+    """Administratively provision a verified Lab Technician, Pharmacy Staff, or Admin account."""
+    return auth_service.provision_staff_user(db=db, staff_in=staff_in)
 
 
 @router.get(

@@ -7,7 +7,7 @@ from app.core.security import get_password_hash, verify_password, create_access_
 from app.models.user import User, UserRole
 from app.models.patient import PatientProfile
 from app.models.doctor import DoctorProfile, DoctorApprovalStatus
-from app.schemas.user import UserCreate
+from app.schemas.user import UserCreate, StaffCreate
 from app.schemas.token import Token
 
 
@@ -17,6 +17,13 @@ class AuthService:
     @staticmethod
     def register_user(db: Session, user_in: UserCreate) -> User:
         """Register a new user and initialize role-specific profile stub."""
+        # Enforce secure role creation strategy: restrict public self-registration
+        if user_in.role in [UserRole.ADMIN, UserRole.LAB_TECHNICIAN, UserRole.PHARMACY_STAFF]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Public registration is restricted to PATIENT and DOCTOR roles only. Staff accounts must be provisioned by an administrator.",
+            )
+
         existing_user = db.query(User).filter(User.email == user_in.email.lower()).first()
         if existing_user:
             raise HTTPException(
@@ -49,6 +56,30 @@ class AuthService:
             )
             db.add(doctor_profile)
 
+        db.commit()
+        db.refresh(db_user)
+        return db_user
+
+    @staticmethod
+    def provision_staff_user(db: Session, staff_in: StaffCreate) -> User:
+        """Administratively provision a staff account (Lab Tech, Pharmacy Staff, Admin)."""
+        existing_user = db.query(User).filter(User.email == staff_in.email.lower()).first()
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="A user with this email address already exists.",
+            )
+
+        db_user = User(
+            email=staff_in.email.lower(),
+            hashed_password=get_password_hash(staff_in.password),
+            full_name=staff_in.full_name,
+            phone_number=staff_in.phone_number,
+            role=staff_in.role,
+            is_active=True,
+            is_verified=True,
+        )
+        db.add(db_user)
         db.commit()
         db.refresh(db_user)
         return db_user
