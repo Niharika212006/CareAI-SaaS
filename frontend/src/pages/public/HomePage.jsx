@@ -20,6 +20,8 @@ export function HomePage() {
   const getDashboardLink = () => {
     if (role === 'DOCTOR') return '/doctor/dashboard';
     if (role === 'ADMIN') return '/admin/dashboard';
+    if (role === 'LAB_TECHNICIAN') return '/lab/dashboard';
+    if (role === 'PHARMACY_STAFF') return '/pharmacy/dashboard';
     return '/patient/dashboard';
   };
 

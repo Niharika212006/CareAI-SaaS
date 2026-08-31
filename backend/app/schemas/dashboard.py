@@ -194,3 +194,44 @@ class AdminDashboardResponse(BaseModel):
     recent_activity: List[AdminRecentActivityItem] = []
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# ---------------------------------------------------------------------------
+# Lab Technician Dashboard Schemas
+# ---------------------------------------------------------------------------
+
+class LabTechnicianStats(BaseModel):
+    pending_lab_tests: int = 0
+    completed_tests_today: int = 0
+    critical_alerts: int = 0
+    total_samples_processed: int = 0
+
+
+class LabTechnicianDashboardResponse(BaseModel):
+    role: str = "LAB_TECHNICIAN"
+    message: str = "Lab Technician Clinical Workspace Active"
+    stats: LabTechnicianStats = LabTechnicianStats()
+    pending_tasks: List[Dict[str, Any]] = []
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ---------------------------------------------------------------------------
+# Pharmacy Staff Dashboard Schemas
+# ---------------------------------------------------------------------------
+
+class PharmacyStats(BaseModel):
+    pending_dispensations: int = 0
+    prescriptions_verified_today: int = 0
+    low_stock_alerts: int = 0
+    total_medications_dispensed: int = 0
+
+
+class PharmacyDashboardResponse(BaseModel):
+    role: str = "PHARMACY_STAFF"
+    message: str = "Pharmacy Staff Clinical Workspace Active"
+    stats: PharmacyStats = PharmacyStats()
+    pending_dispensations: List[Dict[str, Any]] = []
+
+    model_config = ConfigDict(from_attributes=True)
+

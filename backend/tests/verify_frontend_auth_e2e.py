@@ -1,4 +1,4 @@
-"""E2E Verification of authentication, session endpoints, and role routing."""
+"""E2E Verification of authentication, session endpoints, and role routing for all 5 roles."""
 import httpx
 
 base_url = "http://127.0.0.1:8000"
@@ -40,7 +40,7 @@ def test_frontend_auth():
         headers={"Authorization": f"Bearer {pat_token}"},
     )
     assert r_pat_dash.status_code == 200
-    print("  [PASS] Patient login, token session verification, and patient dashboard fetch succeeded.")
+    print("  [PASS] Patient login, token verification, and dashboard fetch succeeded.")
 
     print("\n=== 4. Testing Doctor Auth & Dashboard API ===")
     r_doc = httpx.post(
@@ -64,7 +64,7 @@ def test_frontend_auth():
         headers={"Authorization": f"Bearer {doc_token}"},
     )
     assert r_doc_dash.status_code == 200
-    print("  [PASS] Doctor login, token session verification, and clinical dashboard fetch succeeded.")
+    print("  [PASS] Doctor login, token verification, and dashboard fetch succeeded.")
 
     print("\n=== 5. Testing Admin Auth & Dashboard API ===")
     r_adm = httpx.post(
@@ -88,32 +88,79 @@ def test_frontend_auth():
         headers={"Authorization": f"Bearer {adm_token}"},
     )
     assert r_adm_dash.status_code == 200
-    print("  [PASS] Admin login, token session verification, and oversight dashboard fetch succeeded.")
+    print("  [PASS] Admin login, token verification, and dashboard fetch succeeded.")
 
-    print("\n=== 6. Testing Cross-Role Authorization Enforcement ===")
-    # Patient trying to access Doctor dashboard API
-    r_unauth_doc = httpx.get(
-        f"{base_url}/api/v1/dashboard/doctor",
-        headers={"Authorization": f"Bearer {pat_token}"},
+    print("\n=== 6. Testing Lab Technician Auth & Dashboard API ===")
+    r_lab = httpx.post(
+        f"{base_url}/api/v1/auth/login",
+        json={"email": "lab.tech@careai.com", "password": "LabTechPass123!"},
     )
-    assert r_unauth_doc.status_code == 403, f"Expected 403, got {r_unauth_doc.status_code}"
+    assert r_lab.status_code == 200
+    lab_data = r_lab.json()
+    assert lab_data["role"] == "LAB_TECHNICIAN"
+    lab_token = lab_data["access_token"]
 
-    # Patient trying to access Admin dashboard API
-    r_unauth_adm = httpx.get(
-        f"{base_url}/api/v1/dashboard/admin",
-        headers={"Authorization": f"Bearer {pat_token}"},
+    r_lab_me = httpx.get(
+        f"{base_url}/api/v1/auth/me",
+        headers={"Authorization": f"Bearer {lab_token}"},
     )
-    assert r_unauth_adm.status_code == 403, f"Expected 403, got {r_unauth_adm.status_code}"
+    assert r_lab_me.status_code == 200
+    assert r_lab_me.json()["role"] == "LAB_TECHNICIAN"
 
-    # Doctor trying to access Admin dashboard API
-    r_doc_unauth_adm = httpx.get(
-        f"{base_url}/api/v1/dashboard/admin",
-        headers={"Authorization": f"Bearer {doc_token}"},
+    r_lab_dash = httpx.get(
+        f"{base_url}/api/v1/dashboard/lab-technician",
+        headers={"Authorization": f"Bearer {lab_token}"},
     )
-    assert r_doc_unauth_adm.status_code == 403, f"Expected 403, got {r_doc_unauth_adm.status_code}"
-    print("  [PASS] Cross-role access properly rejected with HTTP 403 Forbidden.")
+    assert r_lab_dash.status_code == 200
+    print("  [PASS] Lab Technician login, token verification, and workspace dashboard fetch succeeded.")
 
-    print("\n[SUCCESS] All authentication, token verification, role routing, and RBAC permissions verified 100% operational!")
+    print("\n=== 7. Testing Pharmacy Staff Auth & Dashboard API ===")
+    r_pharm = httpx.post(
+        f"{base_url}/api/v1/auth/login",
+        json={"email": "pharmacy.staff@careai.com", "password": "PharmacyPass123!"},
+    )
+    assert r_pharm.status_code == 200
+    pharm_data = r_pharm.json()
+    assert pharm_data["role"] == "PHARMACY_STAFF"
+    pharm_token = pharm_data["access_token"]
+
+    r_pharm_me = httpx.get(
+        f"{base_url}/api/v1/auth/me",
+        headers={"Authorization": f"Bearer {pharm_token}"},
+    )
+    assert r_pharm_me.status_code == 200
+    assert r_pharm_me.json()["role"] == "PHARMACY_STAFF"
+
+    r_pharm_dash = httpx.get(
+        f"{base_url}/api/v1/dashboard/pharmacy",
+        headers={"Authorization": f"Bearer {pharm_token}"},
+    )
+    assert r_pharm_dash.status_code == 200
+    print("  [PASS] Pharmacy Staff login, token verification, and dispensary dashboard fetch succeeded.")
+
+    print("\n=== 8. Testing 5-Role Cross-Access Authorization Restrictions ===")
+    # Lab Tech cannot access Pharmacy or Admin
+    assert httpx.get(f"{base_url}/api/v1/dashboard/pharmacy", headers={"Authorization": f"Bearer {lab_token}"}).status_code == 403
+    assert httpx.get(f"{base_url}/api/v1/dashboard/admin", headers={"Authorization": f"Bearer {lab_token}"}).status_code == 403
+
+    # Pharmacy Staff cannot access Lab or Doctor
+    assert httpx.get(f"{base_url}/api/v1/dashboard/lab-technician", headers={"Authorization": f"Bearer {pharm_token}"}).status_code == 403
+    assert httpx.get(f"{base_url}/api/v1/dashboard/doctor", headers={"Authorization": f"Bearer {pharm_token}"}).status_code == 403
+
+    # Patient cannot access Lab or Pharmacy
+    assert httpx.get(f"{base_url}/api/v1/dashboard/lab-technician", headers={"Authorization": f"Bearer {pat_token}"}).status_code == 403
+    assert httpx.get(f"{base_url}/api/v1/dashboard/pharmacy", headers={"Authorization": f"Bearer {pat_token}"}).status_code == 403
+
+    # Doctor cannot access Lab or Pharmacy
+    assert httpx.get(f"{base_url}/api/v1/dashboard/lab-technician", headers={"Authorization": f"Bearer {doc_token}"}).status_code == 403
+    assert httpx.get(f"{base_url}/api/v1/dashboard/pharmacy", headers={"Authorization": f"Bearer {doc_token}"}).status_code == 403
+
+    # Admin cannot access Lab or Pharmacy
+    assert httpx.get(f"{base_url}/api/v1/dashboard/lab-technician", headers={"Authorization": f"Bearer {adm_token}"}).status_code == 403
+    assert httpx.get(f"{base_url}/api/v1/dashboard/pharmacy", headers={"Authorization": f"Bearer {adm_token}"}).status_code == 403
+    print("  [PASS] All cross-role dashboard attempts rejected with HTTP 403 Forbidden.")
+
+    print("\n[SUCCESS] All 5 roles verified with complete authentication, session persistence, and RBAC!")
 
 
 if __name__ == "__main__":

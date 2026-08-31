@@ -78,3 +78,5 @@ def require_role(*allowed_roles: UserRole) -> Callable:
 get_current_patient_user = require_role(UserRole.PATIENT)
 get_current_doctor_user = require_role(UserRole.DOCTOR)
 get_current_admin_user = require_role(UserRole.ADMIN)
+get_current_lab_technician_user = require_role(UserRole.LAB_TECHNICIAN)
+get_current_pharmacy_staff_user = require_role(UserRole.PHARMACY_STAFF)

@@ -12,6 +12,8 @@ class UserRole(str, enum.Enum):
     PATIENT = "PATIENT"
     DOCTOR = "DOCTOR"
     ADMIN = "ADMIN"
+    LAB_TECHNICIAN = "LAB_TECHNICIAN"
+    PHARMACY_STAFF = "PHARMACY_STAFF"
 
 
 class User(Base, TimeStampedModel):

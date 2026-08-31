@@ -21,6 +21,20 @@ export const dashboardService = {
   async getAdminDashboard() {
     return await api.get('/dashboard/admin');
   },
+
+  /**
+   * Fetch lab technician clinical testing workspace.
+   */
+  async getLabTechnicianDashboard() {
+    return await api.get('/dashboard/lab-technician');
+  },
+
+  /**
+   * Fetch pharmacy staff dispensation workspace.
+   */
+  async getPharmacyDashboard() {
+    return await api.get('/dashboard/pharmacy');
+  },
 };
 
 export default dashboardService;

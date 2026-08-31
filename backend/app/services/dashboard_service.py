@@ -30,6 +30,10 @@ from app.schemas.dashboard import (
     AdminAppointmentSummary,
     AdminAISafetyMetrics,
     AdminRecentActivityItem,
+    LabTechnicianDashboardResponse,
+    LabTechnicianStats,
+    PharmacyDashboardResponse,
+    PharmacyStats,
 )
 
 
@@ -541,5 +545,49 @@ class DashboardService:
             recent_activity=recent_activity[:10],
         )
 
+    # -----------------------------------------------------------------------
+    # 4. Lab Technician Dashboard
+    # -----------------------------------------------------------------------
+    @staticmethod
+    def get_lab_technician_dashboard(db: Session, lab_tech_user: User) -> LabTechnicianDashboardResponse:
+        """Aggregate placeholder metrics and clinical testing queue for authenticated lab technician."""
+        return LabTechnicianDashboardResponse(
+            role="LAB_TECHNICIAN",
+            message=f"Welcome, {lab_tech_user.full_name}. Lab Technician Clinical Workspace is active.",
+            stats=LabTechnicianStats(
+                pending_lab_tests=3,
+                completed_tests_today=7,
+                critical_alerts=0,
+                total_samples_processed=142,
+            ),
+            pending_tasks=[
+                {"id": 1, "test_name": "Comprehensive Metabolic Panel", "priority": "NORMAL", "status": "PENDING"},
+                {"id": 2, "test_name": "Lipid Profile & HbA1c", "priority": "HIGH", "status": "IN_ANALYSIS"},
+                {"id": 3, "test_name": "Complete Blood Count (CBC)", "priority": "NORMAL", "status": "PENDING"},
+            ],
+        )
+
+    # -----------------------------------------------------------------------
+    # 5. Pharmacy Staff Dashboard
+    # -----------------------------------------------------------------------
+    @staticmethod
+    def get_pharmacy_dashboard(db: Session, pharmacy_user: User) -> PharmacyDashboardResponse:
+        """Aggregate placeholder metrics and prescription dispensation queue for authenticated pharmacy staff."""
+        return PharmacyDashboardResponse(
+            role="PHARMACY_STAFF",
+            message=f"Welcome, {pharmacy_user.full_name}. Pharmacy Staff Clinical Workspace is active.",
+            stats=PharmacyStats(
+                pending_dispensations=5,
+                prescriptions_verified_today=12,
+                low_stock_alerts=1,
+                total_medications_dispensed=389,
+            ),
+            pending_dispensations=[
+                {"id": 101, "patient_name": "Johnathan Doe", "medication": "Amoxicillin 500mg", "status": "READY_FOR_PICKUP"},
+                {"id": 102, "patient_name": "Emma Watson", "medication": "Lisinopril 10mg", "status": "VERIFYING"},
+            ],
+        )
+
 
 dashboard_service = DashboardService()
+

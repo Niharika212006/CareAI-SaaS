@@ -13,11 +13,13 @@ import {
   Clock,
   Bell,
   FolderOpen,
+  FlaskConical,
+  Pill,
 } from 'lucide-react';
 import useAuth from '../../hooks/useAuth';
 
 export function Sidebar() {
-  const { isPatient, isDoctor, isAdmin } = useAuth();
+  const { isPatient, isDoctor, isAdmin, isLabTechnician, isPharmacyStaff } = useAuth();
 
   const patientLinks = [
     { to: '/patient/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -46,9 +48,21 @@ export function Sidebar() {
     { to: '/notifications', label: 'Notifications', icon: Bell },
   ];
 
+  const labTechLinks = [
+    { to: '/lab/dashboard', label: 'Lab Workspace', icon: FlaskConical },
+    { to: '/notifications', label: 'Notifications', icon: Bell },
+  ];
+
+  const pharmacyLinks = [
+    { to: '/pharmacy/dashboard', label: 'Pharmacy Dispensary', icon: Pill },
+    { to: '/notifications', label: 'Notifications', icon: Bell },
+  ];
+
   let links = patientLinks;
   if (isDoctor) links = doctorLinks;
   if (isAdmin) links = adminLinks;
+  if (isLabTechnician) links = labTechLinks;
+  if (isPharmacyStaff) links = pharmacyLinks;
 
   return (
     <aside

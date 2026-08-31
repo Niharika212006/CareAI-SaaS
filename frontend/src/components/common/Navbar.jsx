@@ -6,7 +6,7 @@ import Badge from './Badge';
 import NotificationBell from './NotificationBell';
 
 export function Navbar() {
-  const { user, isAuthenticated, logout, isPatient, isDoctor, isAdmin } = useAuth();
+  const { user, isAuthenticated, logout, isPatient, isDoctor, isAdmin, isLabTechnician, isPharmacyStaff } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -17,12 +17,16 @@ export function Navbar() {
   const getRoleBadge = () => {
     if (isAdmin) return <Badge variant="rose">Admin</Badge>;
     if (isDoctor) return <Badge variant="blue">Doctor</Badge>;
+    if (isLabTechnician) return <Badge variant="purple">Lab Tech</Badge>;
+    if (isPharmacyStaff) return <Badge variant="amber">Pharmacy</Badge>;
     return <Badge variant="teal">Patient</Badge>;
   };
 
   const getDashboardPath = () => {
     if (isAdmin) return '/admin/dashboard';
     if (isDoctor) return '/doctor/dashboard';
+    if (isLabTechnician) return '/lab/dashboard';
+    if (isPharmacyStaff) return '/pharmacy/dashboard';
     return '/patient/dashboard';
   };
 

@@ -55,6 +55,12 @@ export function ProtectedRoute({ children, allowedRoles = [] }) {
     if (user?.role === USER_ROLES.ADMIN) {
       return <Navigate to="/admin/dashboard" replace />;
     }
+    if (user?.role === USER_ROLES.LAB_TECHNICIAN) {
+      return <Navigate to="/lab/dashboard" replace />;
+    }
+    if (user?.role === USER_ROLES.PHARMACY_STAFF) {
+      return <Navigate to="/pharmacy/dashboard" replace />;
+    }
     if (user?.role === USER_ROLES.PATIENT) {
       return <Navigate to="/patient/dashboard" replace />;
     }

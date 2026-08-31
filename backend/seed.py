@@ -34,6 +34,36 @@ def seed_database():
             db.flush()
             print("  [OK] Admin created: admin@careai.com / AdminPass123!")
 
+        # 1b. Lab Technician
+        lab_tech = db.query(User).filter(User.email == "lab.tech@careai.com").first()
+        if not lab_tech:
+            lab_tech = User(
+                email="lab.tech@careai.com",
+                hashed_password=get_password_hash("LabTechPass123!"),
+                full_name="Alex Rivera (Lead Lab Specialist)",
+                role=UserRole.LAB_TECHNICIAN,
+                is_active=True,
+                is_verified=True,
+            )
+            db.add(lab_tech)
+            db.flush()
+            print("  [OK] Lab Technician created: lab.tech@careai.com / LabTechPass123!")
+
+        # 1c. Pharmacy Staff
+        pharmacy_staff = db.query(User).filter(User.email == "pharmacy.staff@careai.com").first()
+        if not pharmacy_staff:
+            pharmacy_staff = User(
+                email="pharmacy.staff@careai.com",
+                hashed_password=get_password_hash("PharmacyPass123!"),
+                full_name="Elena Rostova (Chief Clinical Pharmacist)",
+                role=UserRole.PHARMACY_STAFF,
+                is_active=True,
+                is_verified=True,
+            )
+            db.add(pharmacy_staff)
+            db.flush()
+            print("  [OK] Pharmacy Staff created: pharmacy.staff@careai.com / PharmacyPass123!")
+
         # 2. Approved Doctors
         doctors_data = [
             {

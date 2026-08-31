@@ -146,6 +146,8 @@ export function AuthProvider({ children }) {
     isPatient: user?.role === USER_ROLES.PATIENT,
     isDoctor: user?.role === USER_ROLES.DOCTOR,
     isAdmin: user?.role === USER_ROLES.ADMIN,
+    isLabTechnician: user?.role === USER_ROLES.LAB_TECHNICIAN,
+    isPharmacyStaff: user?.role === USER_ROLES.PHARMACY_STAFF,
     hasRole,
     login,
     register,

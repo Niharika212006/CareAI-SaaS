@@ -27,6 +27,10 @@ export function RegisterPage() {
         navigate('/doctor/dashboard', { replace: true });
       } else if (user.role === USER_ROLES.ADMIN) {
         navigate('/admin/dashboard', { replace: true });
+      } else if (user.role === USER_ROLES.LAB_TECHNICIAN) {
+        navigate('/lab/dashboard', { replace: true });
+      } else if (user.role === USER_ROLES.PHARMACY_STAFF) {
+        navigate('/pharmacy/dashboard', { replace: true });
       } else {
         navigate('/patient/dashboard', { replace: true });
       }
@@ -46,11 +50,17 @@ export function RegisterPage() {
     setLoading(true);
 
     try {
-      const user = await register(formData);
-      if (user.role === USER_ROLES.DOCTOR) {
-        navigate('/doctor/dashboard');
+      const regUser = await register(formData);
+      if (regUser.role === USER_ROLES.DOCTOR) {
+        navigate('/doctor/dashboard', { replace: true });
+      } else if (regUser.role === USER_ROLES.ADMIN) {
+        navigate('/admin/dashboard', { replace: true });
+      } else if (regUser.role === USER_ROLES.LAB_TECHNICIAN) {
+        navigate('/lab/dashboard', { replace: true });
+      } else if (regUser.role === USER_ROLES.PHARMACY_STAFF) {
+        navigate('/pharmacy/dashboard', { replace: true });
       } else {
-        navigate('/patient/dashboard');
+        navigate('/patient/dashboard', { replace: true });
       }
     } catch (err) {
       setError(err.message || 'Registration failed. Please try again.');

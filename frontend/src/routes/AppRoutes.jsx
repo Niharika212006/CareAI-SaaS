@@ -23,6 +23,8 @@ import DoctorAppointmentsPage from '../pages/doctor/DoctorAppointmentsPage';
 import DoctorPrescriptionsPage from '../pages/doctor/DoctorPrescriptionsPage';
 import DoctorAvailabilityPage from '../pages/doctor/DoctorAvailabilityPage';
 import AdminDashboardPage from '../pages/admin/AdminDashboardPage';
+import LabDashboardPage from '../pages/lab/LabDashboardPage';
+import PharmacyDashboardPage from '../pages/pharmacy/PharmacyDashboardPage';
 import NotificationsPage from '../pages/common/NotificationsPage';
 import PatientMedicalDocumentsPage from '../pages/patient/PatientMedicalDocumentsPage';
 
@@ -45,7 +47,15 @@ export function AppRoutes() {
       <Route
         path="/notifications"
         element={
-          <ProtectedRoute allowedRoles={[USER_ROLES.PATIENT, USER_ROLES.DOCTOR, USER_ROLES.ADMIN]}>
+          <ProtectedRoute
+            allowedRoles={[
+              USER_ROLES.PATIENT,
+              USER_ROLES.DOCTOR,
+              USER_ROLES.ADMIN,
+              USER_ROLES.LAB_TECHNICIAN,
+              USER_ROLES.PHARMACY_STAFF,
+            ]}
+          >
             <DashboardLayout />
           </ProtectedRoute>
         }
@@ -106,6 +116,34 @@ export function AppRoutes() {
         <Route path="dashboard" element={<AdminDashboardPage />} />
         <Route path="doctors" element={<AdminDashboardPage />} />
         <Route path="users" element={<AdminDashboardPage />} />
+        <Route path="notifications" element={<NotificationsPage />} />
+      </Route>
+
+      {/* Strict Protected Lab Technician Routes */}
+      <Route
+        path="/lab"
+        element={
+          <ProtectedRoute allowedRoles={[USER_ROLES.LAB_TECHNICIAN]}>
+            <DashboardLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route path="dashboard" element={<LabDashboardPage />} />
+        <Route path="notifications" element={<NotificationsPage />} />
+      </Route>
+
+      {/* Strict Protected Pharmacy Staff Routes */}
+      <Route
+        path="/pharmacy"
+        element={
+          <ProtectedRoute allowedRoles={[USER_ROLES.PHARMACY_STAFF]}>
+            <DashboardLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route path="dashboard" element={<PharmacyDashboardPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
       </Route>
 

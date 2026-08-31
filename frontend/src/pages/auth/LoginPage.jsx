@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogIn, Activity, AlertCircle, Sparkles, User, Stethoscope, Shield } from 'lucide-react';
+import { LogIn, Activity, AlertCircle, Sparkles, User, Stethoscope, Shield, FlaskConical, Pill } from 'lucide-react';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import useAuth from '../../hooks/useAuth';
@@ -23,6 +23,10 @@ export function LoginPage() {
         navigate('/doctor/dashboard', { replace: true });
       } else if (user.role === USER_ROLES.ADMIN) {
         navigate('/admin/dashboard', { replace: true });
+      } else if (user.role === USER_ROLES.LAB_TECHNICIAN) {
+        navigate('/lab/dashboard', { replace: true });
+      } else if (user.role === USER_ROLES.PHARMACY_STAFF) {
+        navigate('/pharmacy/dashboard', { replace: true });
       } else {
         navigate('/patient/dashboard', { replace: true });
       }
@@ -50,6 +54,10 @@ export function LoginPage() {
         targetPath = fromPath && fromPath.startsWith('/doctor') ? fromPath : '/doctor/dashboard';
       } else if (authUser.role === USER_ROLES.ADMIN) {
         targetPath = fromPath && fromPath.startsWith('/admin') ? fromPath : '/admin/dashboard';
+      } else if (authUser.role === USER_ROLES.LAB_TECHNICIAN) {
+        targetPath = fromPath && fromPath.startsWith('/lab') ? fromPath : '/lab/dashboard';
+      } else if (authUser.role === USER_ROLES.PHARMACY_STAFF) {
+        targetPath = fromPath && fromPath.startsWith('/pharmacy') ? fromPath : '/pharmacy/dashboard';
       } else {
         targetPath = fromPath && fromPath.startsWith('/patient') ? fromPath : '/patient/dashboard';
       }
@@ -141,6 +149,22 @@ export function LoginPage() {
             onClick={() => handleQuickFill('admin@careai.com', 'AdminPass123!')}
           >
             <Shield size={12} /> Admin
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+            onClick={() => handleQuickFill('lab.tech@careai.com', 'LabTechPass123!')}
+          >
+            <FlaskConical size={12} /> Lab Tech
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+            onClick={() => handleQuickFill('pharmacy.staff@careai.com', 'PharmacyPass123!')}
+          >
+            <Pill size={12} /> Pharmacy
           </button>
         </div>
       </div>

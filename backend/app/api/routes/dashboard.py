@@ -9,6 +9,8 @@ from app.schemas.dashboard import (
     PatientDashboardResponse,
     DoctorDashboardResponse,
     AdminDashboardResponse,
+    LabTechnicianDashboardResponse,
+    PharmacyDashboardResponse,
 )
 from app.services.dashboard_service import dashboard_service
 
@@ -52,3 +54,30 @@ def get_admin_dashboard(
 ) -> AdminDashboardResponse:
     """Retrieve platform-level user registrations, doctor credential approvals, consultation volumes, and AI safety analytics."""
     return dashboard_service.get_admin_dashboard(db=db)
+
+
+@router.get(
+    "/lab-technician",
+    response_model=LabTechnicianDashboardResponse,
+    summary="Get real-time lab technician workspace dashboard",
+)
+def get_lab_technician_dashboard(
+    current_user: User = Depends(require_role(UserRole.LAB_TECHNICIAN)),
+    db: Session = Depends(get_db),
+) -> LabTechnicianDashboardResponse:
+    """Retrieve lab testing queue, processing metrics, and critical alert counts."""
+    return dashboard_service.get_lab_technician_dashboard(db=db, lab_tech_user=current_user)
+
+
+@router.get(
+    "/pharmacy",
+    response_model=PharmacyDashboardResponse,
+    summary="Get real-time pharmacy staff workspace dashboard",
+)
+def get_pharmacy_dashboard(
+    current_user: User = Depends(require_role(UserRole.PHARMACY_STAFF)),
+    db: Session = Depends(get_db),
+) -> PharmacyDashboardResponse:
+    """Retrieve prescription dispensation queue, inventory alerts, and medication delivery metrics."""
+    return dashboard_service.get_pharmacy_dashboard(db=db, pharmacy_user=current_user)
+
