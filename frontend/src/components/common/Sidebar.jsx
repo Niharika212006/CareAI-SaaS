@@ -52,14 +52,17 @@ export function Sidebar() {
   ];
 
   const labTechLinks = [
-    { to: '/lab/dashboard', label: 'Lab Workspace', icon: FlaskConical },
-    { to: '/notifications', label: 'Notifications', icon: Bell },
+    { to: '/lab/dashboard', label: 'Lab Workspace', icon: LayoutDashboard },
+    { to: '/lab/tests', label: 'Diagnostic Requisitions', icon: FlaskConical },
+    { to: '/lab/notifications', label: 'Notifications', icon: Bell },
   ];
 
   const pharmacyLinks = [
-    { to: '/pharmacy/dashboard', label: 'Pharmacy Dispensary', icon: Pill },
-    { to: '/notifications', label: 'Notifications', icon: Bell },
+    { to: '/pharmacy/dashboard', label: 'Dispensary Overview', icon: LayoutDashboard },
+    { to: '/pharmacy/prescriptions', label: 'Prescription Queue', icon: Pill },
+    { to: '/pharmacy/notifications', label: 'Notifications', icon: Bell },
   ];
+
 
   let links = patientLinks;
   if (isDoctor) links = doctorLinks;

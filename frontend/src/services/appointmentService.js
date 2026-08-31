@@ -42,6 +42,15 @@ export const appointmentService = {
   async getAppointmentById(appointmentId) {
     return await api.get(`/appointments/${appointmentId}`);
   },
+
+  async getDoctorAppointments(status = '') {
+    return await this.getMyDoctorAppointments(status);
+  },
+
+  async getPatientAppointments(status = '') {
+    return await this.getMyPatientAppointments(status);
+  },
 };
 
 export default appointmentService;
+

@@ -1,3 +1,4 @@
+import React, { useState, useEffect, useRef } from 'react';
 import {
   FileText,
   UploadCloud,
@@ -18,6 +19,7 @@ import {
   Save,
   Sparkles,
 } from 'lucide-react';
+
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import Badge from '../../components/common/Badge';

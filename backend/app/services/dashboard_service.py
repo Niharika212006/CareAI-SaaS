@@ -9,9 +9,11 @@ from app.models.user import User, UserRole
 from app.models.patient import PatientProfile
 from app.models.doctor import DoctorProfile, DoctorApprovalStatus
 from app.models.appointment import Appointment, AppointmentStatus
-from app.models.prescription import Prescription, PrescriptionItem
+from app.models.prescription import Prescription, PrescriptionItem, PrescriptionStatus
 from app.models.ai_report import AIAnalysisReport, InteractionSeverity
 from app.models.availability import DoctorAvailability, DoctorUnavailableDate
+from app.models.lab import LabOrder, LabOrderStatus, LabSample, LabResult
+from app.services.pharmacy_service import pharmacy_service
 from app.schemas.dashboard import (
     PatientDashboardResponse,
     PatientDashboardStats,
@@ -550,21 +552,88 @@ class DashboardService:
     # -----------------------------------------------------------------------
     @staticmethod
     def get_lab_technician_dashboard(db: Session, lab_tech_user: User) -> LabTechnicianDashboardResponse:
-        """Aggregate placeholder metrics and clinical testing queue for authenticated lab technician."""
+        """Aggregate real-time metrics and diagnostic testing queue for authenticated lab technician."""
+        today = date.today()
+        day_start = datetime.combine(today, time.min)
+
+        # 1. Real SQL count queries
+        pending_samples = (
+            db.query(func.count(LabOrder.id))
+            .filter(LabOrder.status.in_([LabOrderStatus.ORDERED, LabOrderStatus.SAMPLE_PENDING]))
+            .scalar() or 0
+        )
+        samples_today = (
+            db.query(func.count(LabSample.id))
+            .filter(LabSample.collected_at >= day_start)
+            .scalar() or 0
+        )
+        tests_in_progress = (
+            db.query(func.count(LabOrder.id))
+            .filter(LabOrder.status == LabOrderStatus.IN_PROGRESS)
+            .scalar() or 0
+        )
+        results_entered = (
+            db.query(func.count(LabOrder.id))
+            .filter(LabOrder.status == LabOrderStatus.RESULTS_ENTERED)
+            .scalar() or 0
+        )
+        critical_alerts = (
+            db.query(func.count(distinct(LabResult.lab_order_item_id)))
+            .filter(LabResult.is_critical == True)
+            .scalar() or 0
+        )
+        completed_today = (
+            db.query(func.count(LabOrder.id))
+            .filter(
+                LabOrder.status == LabOrderStatus.RELEASED,
+                LabOrder.updated_at >= day_start,
+            )
+            .scalar() or 0
+        )
+        total_samples = db.query(func.count(LabSample.id)).scalar() or 0
+
+        # 2. Pending Tasks Queue (Active diagnostic orders)
+        active_orders = (
+            db.query(LabOrder)
+            .options(
+                joinedload(LabOrder.patient).joinedload(PatientProfile.user),
+                joinedload(LabOrder.items),
+            )
+            .filter(LabOrder.status.notin_([LabOrderStatus.RELEASED, LabOrderStatus.CANCELLED]))
+            .order_by(LabOrder.ordered_at.desc())
+            .limit(10)
+            .all()
+        )
+
+        pending_tasks = []
+        for o in active_orders:
+            pat_name = o.patient.user.full_name if o.patient and o.patient.user else f"Patient #{o.patient_id}"
+            test_names = [item.test.test_name for item in o.items if item.test]
+            pending_tasks.append({
+                "id": o.id,
+                "patient_name": pat_name,
+                "test_name": test_names[0] if test_names else "Diagnostic Test",
+                "test_names": test_names,
+                "priority": o.priority.value,
+                "status": o.status.value,
+                "ordered_at": o.ordered_at.isoformat() if o.ordered_at else None,
+            })
+
         return LabTechnicianDashboardResponse(
             role="LAB_TECHNICIAN",
             message=f"Welcome, {lab_tech_user.full_name}. Lab Technician Clinical Workspace is active.",
             stats=LabTechnicianStats(
-                pending_lab_tests=3,
-                completed_tests_today=7,
-                critical_alerts=0,
-                total_samples_processed=142,
+                pending_samples=pending_samples,
+                samples_collected_today=samples_today,
+                tests_in_progress=tests_in_progress,
+                results_awaiting_verification=results_entered,
+                critical_alerts_count=critical_alerts,
+                completed_tests_today=completed_today,
+                total_samples_processed=total_samples,
+                pending_lab_tests=pending_samples + tests_in_progress,
+                critical_alerts=critical_alerts,
             ),
-            pending_tasks=[
-                {"id": 1, "test_name": "Comprehensive Metabolic Panel", "priority": "NORMAL", "status": "PENDING"},
-                {"id": 2, "test_name": "Lipid Profile & HbA1c", "priority": "HIGH", "status": "IN_ANALYSIS"},
-                {"id": 3, "test_name": "Complete Blood Count (CBC)", "priority": "NORMAL", "status": "PENDING"},
-            ],
+            pending_tasks=pending_tasks,
         )
 
     # -----------------------------------------------------------------------
@@ -572,22 +641,26 @@ class DashboardService:
     # -----------------------------------------------------------------------
     @staticmethod
     def get_pharmacy_dashboard(db: Session, pharmacy_user: User) -> PharmacyDashboardResponse:
-        """Aggregate placeholder metrics and prescription dispensation queue for authenticated pharmacy staff."""
+        """Aggregate real-time metrics and prescription dispensation queue for authenticated pharmacy staff."""
+        pharmacy_data = pharmacy_service.get_pharmacy_dashboard(db=db, pharmacy_user=pharmacy_user)
+        stats_dict = pharmacy_data["stats"]
         return PharmacyDashboardResponse(
             role="PHARMACY_STAFF",
-            message=f"Welcome, {pharmacy_user.full_name}. Pharmacy Staff Clinical Workspace is active.",
+            message=pharmacy_data["message"],
             stats=PharmacyStats(
-                pending_dispensations=5,
-                prescriptions_verified_today=12,
-                low_stock_alerts=1,
-                total_medications_dispensed=389,
+                pending_dispensations=stats_dict["pending_dispensations"],
+                under_review_count=stats_dict["under_review_count"],
+                ready_for_pickup_count=stats_dict["ready_for_pickup_count"],
+                dispensed_today=stats_dict["dispensed_today"],
+                prescriptions_verified_today=stats_dict["prescriptions_verified_today"],
+                low_stock_alerts=stats_dict["low_stock_alerts"],
+                total_medications_dispensed=stats_dict["total_medications_dispensed"],
+                high_risk_alerts_count=stats_dict["high_risk_alerts_count"],
             ),
-            pending_dispensations=[
-                {"id": 101, "patient_name": "Johnathan Doe", "medication": "Amoxicillin 500mg", "status": "READY_FOR_PICKUP"},
-                {"id": 102, "patient_name": "Emma Watson", "medication": "Lisinopril 10mg", "status": "VERIFYING"},
-            ],
+            pending_dispensations=pharmacy_data["pending_dispensations"],
         )
 
 
 dashboard_service = DashboardService()
+
 

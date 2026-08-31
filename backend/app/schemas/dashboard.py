@@ -201,10 +201,16 @@ class AdminDashboardResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 class LabTechnicianStats(BaseModel):
-    pending_lab_tests: int = 0
+    pending_samples: int = 0
+    samples_collected_today: int = 0
+    tests_in_progress: int = 0
+    results_awaiting_verification: int = 0
+    critical_alerts_count: int = 0
     completed_tests_today: int = 0
-    critical_alerts: int = 0
     total_samples_processed: int = 0
+    # Backward compatible aliases
+    pending_lab_tests: int = 0
+    critical_alerts: int = 0
 
 
 class LabTechnicianDashboardResponse(BaseModel):
@@ -222,9 +228,13 @@ class LabTechnicianDashboardResponse(BaseModel):
 
 class PharmacyStats(BaseModel):
     pending_dispensations: int = 0
+    under_review_count: int = 0
+    ready_for_pickup_count: int = 0
+    dispensed_today: int = 0
     prescriptions_verified_today: int = 0
     low_stock_alerts: int = 0
     total_medications_dispensed: int = 0
+    high_risk_alerts_count: int = 0
 
 
 class PharmacyDashboardResponse(BaseModel):
@@ -234,4 +244,5 @@ class PharmacyDashboardResponse(BaseModel):
     pending_dispensations: List[Dict[str, Any]] = []
 
     model_config = ConfigDict(from_attributes=True)
+
 

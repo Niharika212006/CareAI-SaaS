@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   FlaskConical,
   Activity,
@@ -8,14 +9,14 @@ import {
   Search,
   Filter,
   RefreshCw,
-  Plus,
   FileText,
   ChevronRight,
   ShieldCheck,
-  Send,
   Eye,
   AlertCircle,
   X,
+  Sparkles,
+  ArrowUpRight,
 } from 'lucide-react';
 import Card from '../../components/common/Card';
 import Badge from '../../components/common/Badge';
@@ -25,6 +26,7 @@ import labService from '../../services/labService';
 
 export function LabDashboardPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const [stats, setStats] = useState(null);
   const [queue, setQueue] = useState([]);
@@ -38,7 +40,7 @@ export function LabDashboardPage() {
 
   // Active Modals state
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [activeModal, setActiveModal] = useState(null); // 'COLLECT', 'RESULTS', 'VERIFY', 'DETAIL'
+  const [activeModal, setActiveModal] = useState(null); // 'COLLECT', 'RESULTS', 'VERIFY'
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState(null);
 
@@ -59,6 +61,7 @@ export function LabDashboardPage() {
           status: statusFilter || undefined,
           priority: priorityFilter || undefined,
           search: searchQuery || undefined,
+          limit: 10,
         }),
       ]);
       setStats(statsRes);
@@ -98,7 +101,6 @@ export function LabDashboardPage() {
       setActionError(null);
       const fullOrder = await labService.getOrder(order.id);
       setSelectedOrder(fullOrder);
-      // Initialize inputs from existing results if any
       const initial = {};
       fullOrder.items.forEach((item) => {
         initial[item.id] = {
@@ -132,27 +134,13 @@ export function LabDashboardPage() {
     }
   };
 
-  const handleOpenDetail = async (order) => {
-    try {
-      setActionLoading(true);
-      const fullOrder = await labService.getOrder(order.id);
-      setSelectedOrder(fullOrder);
-      setActiveModal('DETAIL');
-    } catch (err) {
-      setError(err.message || 'Failed to fetch order details.');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  // Workflow Handlers
   const handleStartProcessing = async (orderId) => {
     try {
       setActionLoading(true);
       await labService.startProcessing(orderId);
       await loadData();
     } catch (err) {
-      alert(err.message || 'Failed to start processing.');
+      alert(err.message || 'Failed to start testing.');
     } finally {
       setActionLoading(false);
     }
@@ -238,7 +226,7 @@ export function LabDashboardPage() {
   const getPriorityBadge = (priority) => {
     switch (priority) {
       case 'STAT':
-        return <Badge variant="rose" style={{ animation: 'pulse 2s infinite' }}>STAT IMMEDIATE</Badge>;
+        return <Badge variant="rose" style={{ animation: 'pulse 2s infinite' }}>STAT</Badge>;
       case 'URGENT':
         return <Badge variant="amber">URGENT</Badge>;
       default:
@@ -302,14 +290,24 @@ export function LabDashboardPage() {
           </p>
         </div>
 
-        <Button
-          variant="outline"
-          onClick={loadData}
-          disabled={loading}
-          style={{ background: '#ffffff', color: '#7c3aed', borderColor: '#ffffff', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-        >
-          <RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> Refresh Queue
-        </Button>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <Button
+            variant="outline"
+            onClick={() => navigate('/lab/tests')}
+            style={{ background: 'rgba(255, 255, 255, 0.15)', color: '#ffffff', borderColor: '#ffffff' }}
+          >
+            All Requisitions <ArrowUpRight size={15} style={{ marginLeft: '0.25rem' }} />
+          </Button>
+
+          <Button
+            variant="outline"
+            onClick={loadData}
+            disabled={loading}
+            style={{ background: '#ffffff', color: '#7c3aed', borderColor: '#ffffff', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+          >
+            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Operational Stats Cards */}
@@ -366,7 +364,7 @@ export function LabDashboardPage() {
           <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#e11d48' }}>
             {stats?.critical_alerts_count ?? 0}
           </div>
-          <div style={{ fontSize: '0.75rem', color: '#e11d48', marginTop: '0.25rem' }}>Panic values detected</div>
+          <div style={{ fontSize: '0.75rem', color: '#e11d48', marginTop: '0.25rem' }}>Panic values flagged</div>
         </Card>
 
         <Card className="glass-panel" style={{ padding: '1.25rem' }}>
@@ -384,18 +382,22 @@ export function LabDashboardPage() {
       {/* Main Work Queue Table */}
       <Card className="glass-panel" style={{ padding: '1.5rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
-          <h3 style={{ fontSize: '1.125rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <FlaskConical size={20} color="#7c3aed" /> Diagnostic Requisition Work Queue
-          </h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <h3 style={{ fontSize: '1.125rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <FlaskConical size={20} color="#7c3aed" /> Active Diagnostic Requisitions
+            </h3>
+            <Link to="/lab/tests" style={{ fontSize: '0.8125rem', color: '#7c3aed', fontWeight: 600, textDecoration: 'none' }}>
+              View All Queue →
+            </Link>
+          </div>
 
           {/* Filter Bar */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-            {/* Search Input */}
-            <div style={{ position: 'relative', width: '220px' }}>
+            <div style={{ position: 'relative', width: '200px' }}>
               <Search size={15} style={{ position: 'absolute', left: '10px', top: '10px', color: 'var(--secondary-400)' }} />
               <input
                 type="text"
-                placeholder="Search patient / order..."
+                placeholder="Search patient/order..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 style={{
@@ -409,7 +411,6 @@ export function LabDashboardPage() {
               />
             </div>
 
-            {/* Priority Filter */}
             <select
               value={priorityFilter}
               onChange={(e) => setPriorityFilter(e.target.value)}
@@ -428,7 +429,6 @@ export function LabDashboardPage() {
               <option value="ROUTINE">ROUTINE</option>
             </select>
 
-            {/* Status Filter */}
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -492,7 +492,9 @@ export function LabDashboardPage() {
                     }}
                   >
                     <td style={{ padding: '0.875rem 1rem', fontWeight: 700, color: 'var(--secondary-900)' }}>
-                      #{order.id}
+                      <Link to={`/lab/tests/${order.id}`} style={{ color: '#7c3aed', textDecoration: 'none' }}>
+                        #{order.id}
+                      </Link>
                     </td>
                     <td style={{ padding: '0.875rem 1rem' }}>{getPriorityBadge(order.priority)}</td>
                     <td style={{ padding: '0.875rem 1rem', fontWeight: 600 }}>{order.patient_name}</td>
@@ -517,7 +519,6 @@ export function LabDashboardPage() {
                     </td>
                     <td style={{ padding: '0.875rem 1rem', textAlign: 'right' }}>
                       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.375rem' }}>
-                        {/* Step 1: Collect Sample */}
                         {(order.status === 'ORDERED' || order.status === 'SAMPLE_PENDING') && (
                           <Button
                             size="sm"
@@ -529,7 +530,6 @@ export function LabDashboardPage() {
                           </Button>
                         )}
 
-                        {/* Step 2: Start Testing */}
                         {order.status === 'SAMPLE_COLLECTED' && (
                           <Button
                             size="sm"
@@ -541,7 +541,6 @@ export function LabDashboardPage() {
                           </Button>
                         )}
 
-                        {/* Step 3: Enter Results */}
                         {(order.status === 'IN_PROGRESS' || order.status === 'SAMPLE_COLLECTED') && (
                           <Button
                             size="sm"
@@ -553,7 +552,6 @@ export function LabDashboardPage() {
                           </Button>
                         )}
 
-                        {/* Step 4: Verify */}
                         {order.status === 'RESULTS_ENTERED' && (
                           <Button
                             size="sm"
@@ -565,7 +563,6 @@ export function LabDashboardPage() {
                           </Button>
                         )}
 
-                        {/* Step 5: Release */}
                         {order.status === 'VERIFIED' && (
                           <Button
                             size="sm"
@@ -577,13 +574,12 @@ export function LabDashboardPage() {
                           </Button>
                         )}
 
-                        {/* View Full Timeline/Details */}
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => handleOpenDetail(order)}
+                          onClick={() => navigate(`/lab/tests/${order.id}`)}
                           style={{ padding: '0.35rem 0.5rem', color: 'var(--secondary-600)' }}
-                          title="View Order Details"
+                          title="Open Workstation Detail"
                         >
                           <Eye size={15} />
                         </Button>
@@ -597,9 +593,7 @@ export function LabDashboardPage() {
         )}
       </Card>
 
-      {/* ------------------------------------------------------------- */}
-      {/* MODAL 1: SPECIMEN COLLECTION */}
-      {/* ------------------------------------------------------------- */}
+      {/* Modal 1: Collect Specimen */}
       {activeModal === 'COLLECT' && selectedOrder && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }} className="animate-fade-in">
           <div style={{ background: '#ffffff', borderRadius: 'var(--radius-lg)', maxWidth: '540px', width: '100%', padding: '1.75rem', boxShadow: 'var(--shadow-lg)' }}>
@@ -654,27 +648,20 @@ export function LabDashboardPage() {
                   <option value="ACCEPTABLE">ACCEPTABLE (Sample integrity verified)</option>
                   <option value="HEMOLYZED">HEMOLYZED (Recollection required)</option>
                   <option value="CLOTTED">CLOTTED (Recollection required)</option>
-                  <option value="INSUFFICIENT">INSUFFICIENT (QNS - Quantity Not Sufficient)</option>
+                  <option value="INSUFFICIENT">INSUFFICIENT (Quantity not sufficient)</option>
                   <option value="CONTAMINATED">CONTAMINATED (Sterility compromised)</option>
                 </select>
               </div>
 
-              {sampleCondition !== 'ACCEPTABLE' && (
-                <div style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#b45309', padding: '0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.8125rem' }}>
-                  <AlertTriangle size={15} style={{ display: 'inline', marginRight: '0.375rem' }} />
-                  Compromised specimen will trigger a rejection event and notify the ordering physician that recollection is required.
-                </div>
-              )}
-
               <div>
                 <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--secondary-700)', display: 'block', marginBottom: '0.25rem' }}>
-                  Collection Notes / Draw Observations
+                  Collection Notes
                 </label>
                 <textarea
                   rows={3}
                   value={collectionNotes}
                   onChange={(e) => setCollectionNotes(e.target.value)}
-                  placeholder="Record draw site, volume, hemolysis notes, or collection difficulty..."
+                  placeholder="Draw site, collection notes..."
                   style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--secondary-200)', fontSize: '0.875rem' }}
                 />
               </div>
@@ -690,9 +677,7 @@ export function LabDashboardPage() {
         </div>
       )}
 
-      {/* ------------------------------------------------------------- */}
-      {/* MODAL 2: RESULT ENTRY */}
-      {/* ------------------------------------------------------------- */}
+      {/* Modal 2: Result Entry */}
       {activeModal === 'RESULTS' && selectedOrder && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }} className="animate-fade-in">
           <div style={{ background: '#ffffff', borderRadius: 'var(--radius-lg)', maxWidth: '780px', width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: 'var(--shadow-lg)', overflow: 'hidden' }}>
@@ -769,7 +754,7 @@ export function LabDashboardPage() {
                                 [item.id]: { ...prev[item.id], text_value: val },
                               }));
                             }}
-                            placeholder="e.g. Negative, Reactive"
+                            placeholder="e.g. Negative"
                             style={{ width: '100%', padding: '0.45rem 0.65rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--secondary-200)', fontSize: '0.875rem' }}
                           />
                         </div>
@@ -802,19 +787,17 @@ export function LabDashboardPage() {
             <div style={{ padding: '1rem 1.75rem', borderTop: '1px solid var(--secondary-200)', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
               <Button variant="ghost" type="button" onClick={() => setActiveModal(null)}>Cancel</Button>
               <Button form="result-entry-form" variant="primary" type="submit" disabled={actionLoading} style={{ background: '#0284c7' }}>
-                {actionLoading ? 'Saving...' : 'Save & Evaluate Flags'}
+                {actionLoading ? 'Saving...' : 'Save Analytical Results'}
               </Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ------------------------------------------------------------- */}
-      {/* MODAL 3: VERIFICATION */}
-      {/* ------------------------------------------------------------- */}
+      {/* Modal 3: Verification */}
       {activeModal === 'VERIFY' && selectedOrder && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }} className="animate-fade-in">
-          <div style={{ background: '#ffffff', borderRadius: 'var(--radius-lg)', maxWidth: '640px', width: '100%', padding: '1.75rem', boxShadow: 'var(--shadow-lg)' }}>
+          <div style={{ background: '#ffffff', borderRadius: 'var(--radius-lg)', maxWidth: '540px', width: '100%', padding: '1.75rem', boxShadow: 'var(--shadow-lg)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
               <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <ShieldCheck size={20} color="#0d9488" /> Clinical Result Verification
@@ -830,44 +813,25 @@ export function LabDashboardPage() {
               </div>
             )}
 
-            {/* Results Review Table */}
-            <div style={{ marginBottom: '1rem', maxHeight: '200px', overflowY: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8125rem' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--secondary-200)', color: 'var(--secondary-600)' }}>
-                    <th style={{ textAlign: 'left', padding: '0.4rem 0' }}>Test</th>
-                    <th style={{ textAlign: 'left', padding: '0.4rem 0' }}>Entered Value</th>
-                    <th style={{ textAlign: 'left', padding: '0.4rem 0' }}>Reference Interval</th>
-                    <th style={{ textAlign: 'right', padding: '0.4rem 0' }}>Flag</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedOrder.items.map((item) => (
-                    <tr key={item.id} style={{ borderBottom: '1px solid var(--secondary-100)' }}>
-                      <td style={{ padding: '0.5rem 0', fontWeight: 600 }}>{item.test.test_name}</td>
-                      <td style={{ padding: '0.5rem 0' }}>{item.result?.numeric_value ?? item.result?.text_value ?? 'N/A'} {item.result?.unit || ''}</td>
-                      <td style={{ padding: '0.5rem 0', color: 'var(--secondary-500)' }}>{item.result?.reference_range || '-'}</td>
-                      <td style={{ padding: '0.5rem 0', textAlign: 'right' }}>
-                        <Badge variant={item.result?.is_critical ? 'rose' : item.result?.result_flag === 'NORMAL' ? 'green' : 'amber'}>
-                          {item.result?.result_flag}
-                        </Badge>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
             <form onSubmit={handleSubmitVerify} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
                 <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--secondary-700)', display: 'block', marginBottom: '0.25rem' }}>
-                  Verification Sign-off Notes
+                  Verification Confirmation
+                </label>
+                <div style={{ fontSize: '0.875rem', color: 'var(--secondary-800)', lineHeight: 1.5 }}>
+                  Confirming verification locks results, applies diagnostic validation audit stamps, and prepares report for release to patient and physician.
+                </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--secondary-700)', display: 'block', marginBottom: '0.25rem' }}>
+                  Verification Notes / Quality Control Observations (Optional)
                 </label>
                 <textarea
-                  rows={2}
+                  rows={3}
                   value={verificationNotes}
                   onChange={(e) => setVerificationNotes(e.target.value)}
-                  placeholder="Confirm quality control check, analyzer calibration, and verification sign-off..."
+                  placeholder="Controls within acceptable standard deviations..."
                   style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--secondary-200)', fontSize: '0.875rem' }}
                 />
               </div>
@@ -875,78 +839,10 @@ export function LabDashboardPage() {
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
                 <Button variant="ghost" type="button" onClick={() => setActiveModal(null)}>Cancel</Button>
                 <Button variant="primary" type="submit" disabled={actionLoading} style={{ background: '#0d9488' }}>
-                  {actionLoading ? 'Verifying...' : 'Sign & Verify Results'}
+                  {actionLoading ? 'Verifying...' : 'Confirm Verification'}
                 </Button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* ------------------------------------------------------------- */}
-      {/* MODAL 4: ORDER DETAILS & AUDIT TIMELINE */}
-      {/* ------------------------------------------------------------- */}
-      {activeModal === 'DETAIL' && selectedOrder && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }} className="animate-fade-in">
-          <div style={{ background: '#ffffff', borderRadius: 'var(--radius-lg)', maxWidth: '680px', width: '100%', maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: 'var(--shadow-lg)', overflow: 'hidden' }}>
-            <div style={{ padding: '1.25rem 1.75rem', borderBottom: '1px solid var(--secondary-200)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0 }}>
-                  Order Details #{selectedOrder.id}
-                </h3>
-                <span style={{ fontSize: '0.8125rem', color: 'var(--secondary-500)' }}>
-                  Ordered on {new Date(selectedOrder.ordered_at).toLocaleString()}
-                </span>
-              </div>
-              <button type="button" onClick={() => setActiveModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--secondary-500)' }}>
-                <X size={20} />
-              </button>
-            </div>
-
-            <div style={{ padding: '1.5rem 1.75rem', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              {/* Order Info Summary */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem', background: 'var(--bg-main)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
-                <div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--secondary-500)' }}>Patient</div>
-                  <div style={{ fontWeight: 700 }}>{selectedOrder.patient_name}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--secondary-500)' }}>Doctor</div>
-                  <div style={{ fontWeight: 700 }}>{selectedOrder.doctor_name}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--secondary-500)' }}>Priority</div>
-                  <div>{getPriorityBadge(selectedOrder.priority)}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--secondary-500)' }}>Status</div>
-                  <div>{getStatusBadge(selectedOrder.status)}</div>
-                </div>
-              </div>
-
-              {/* Audit Timeline */}
-              <div>
-                <h4 style={{ fontSize: '0.9375rem', fontWeight: 700, marginBottom: '0.75rem' }}>Lifecycle Audit Trail</h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  {(selectedOrder.audit_events || []).map((ev) => (
-                    <div key={ev.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', fontSize: '0.8125rem', padding: '0.5rem 0', borderBottom: '1px solid var(--secondary-100)' }}>
-                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#7c3aed', marginTop: '6px', flexShrink: 0 }} />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 700, color: 'var(--secondary-900)' }}>{ev.action} • {ev.performed_by_name}</div>
-                        <div style={{ color: 'var(--secondary-600)', marginTop: '2px' }}>{ev.details}</div>
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--secondary-400)' }}>
-                        {new Date(ev.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div style={{ padding: '1rem 1.75rem', borderTop: '1px solid var(--secondary-200)', display: 'flex', justifyContent: 'flex-end' }}>
-              <Button variant="primary" onClick={() => setActiveModal(null)}>Close</Button>
-            </div>
           </div>
         </div>
       )}

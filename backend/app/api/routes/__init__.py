@@ -7,6 +7,8 @@ from app.api.routes.admin import router as admin_router
 from app.api.routes.appointments import router as appointments_router
 from app.api.routes.prescriptions import router as prescriptions_router
 from app.api.routes.ai import router as ai_router
+from app.api.routes.lab import router as lab_router
+from app.api.routes.pharmacy import router as pharmacy_router
 
 __all__ = [
     "auth_router",
@@ -17,4 +19,7 @@ __all__ = [
     "appointments_router",
     "prescriptions_router",
     "ai_router",
+    "lab_router",
+    "pharmacy_router",
 ]
+

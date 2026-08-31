@@ -5,11 +5,7 @@ export const medicalDocumentService = {
    * Upload a medical document for the current patient.
    */
   async uploadDocument(formData) {
-    return await api.post('/medical-documents', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    return await api.post('/medical-documents', formData);
   },
 
   /**
@@ -37,12 +33,12 @@ export const medicalDocumentService = {
    * Download physical document file as Blob.
    */
   async downloadDocument(documentId, fileName = 'medical_document') {
-    const response = await api.get(`/medical-documents/${documentId}/download`, {
+    const blob = await api.get(`/medical-documents/${documentId}/download`, {
       responseType: 'blob',
     });
-    
+
     // Trigger browser download
-    const url = window.URL.createObjectURL(new Blob([response]));
+    const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
     link.setAttribute('download', fileName);
@@ -56,13 +52,13 @@ export const medicalDocumentService = {
    * View document in a new browser tab.
    */
   async viewDocument(documentId) {
-    const response = await api.get(`/medical-documents/${documentId}/download`, {
+    const blob = await api.get(`/medical-documents/${documentId}/download`, {
       responseType: 'blob',
     });
-    const file = new Blob([response], { type: response.type || 'application/pdf' });
-    const fileURL = URL.createObjectURL(file);
+    const fileURL = URL.createObjectURL(blob);
     window.open(fileURL, '_blank');
   },
+
 
   /**
    * Update document metadata (title, category, description).

@@ -1,9 +1,18 @@
-"""Prescription and Medication item models."""
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, Date
+import enum
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, Date, DateTime, Enum as SQLEnum
 from sqlalchemy.orm import relationship
 
 from app.database.base import Base
 from app.models.base import TimeStampedModel
+
+
+class PrescriptionStatus(str, enum.Enum):
+    """Fulfillment lifecycle status for clinical prescriptions."""
+    PRESCRIBED = "PRESCRIBED"
+    UNDER_REVIEW = "UNDER_REVIEW"
+    READY = "READY"
+    DISPENSED = "DISPENSED"
+    CANCELLED = "CANCELLED"
 
 
 class Prescription(Base, TimeStampedModel):
@@ -19,15 +28,27 @@ class Prescription(Base, TimeStampedModel):
     notes = Column(Text, nullable=True)
     valid_until = Column(Date, nullable=True)
 
+    # Pharmacy workflow fields
+    status = Column(
+        SQLEnum(PrescriptionStatus),
+        default=PrescriptionStatus.PRESCRIBED,
+        nullable=False,
+        index=True,
+    )
+    pharmacy_notes = Column(Text, nullable=True)
+    dispensed_at = Column(DateTime, nullable=True)
+    dispensed_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
     # Relationships
     patient = relationship("PatientProfile", back_populates="prescriptions")
     doctor = relationship("DoctorProfile", back_populates="prescriptions")
     appointment = relationship("Appointment", back_populates="prescription")
+    dispensed_by = relationship("User", foreign_keys=[dispensed_by_user_id])
     items = relationship("PrescriptionItem", back_populates="prescription", cascade="all, delete-orphan")
     ai_reports = relationship("AIAnalysisReport", back_populates="prescription", cascade="all, delete-orphan")
 
     def __repr__(self) -> str:
-        return f"<Prescription(id={self.id}, patient_id={self.patient_id}, doctor_id={self.doctor_id}, appointment_id={self.appointment_id})>"
+        return f"<Prescription(id={self.id}, patient_id={self.patient_id}, doctor_id={self.doctor_id}, status='{self.status}')>"
 
 
 class PrescriptionItem(Base, TimeStampedModel):

@@ -20,6 +20,15 @@ export const prescriptionService = {
   async getPrescriptionByAppointment(appointmentId) {
     return await api.get(`/prescriptions/appointment/${appointmentId}`);
   },
+
+  async getDoctorPrescriptions(skip = 0, limit = 50) {
+    return await this.getMyDoctorPrescriptions(skip, limit);
+  },
+
+  async getPatientPrescriptions(skip = 0, limit = 50) {
+    return await this.getMyPatientPrescriptions(skip, limit);
+  },
 };
 
 export default prescriptionService;
+

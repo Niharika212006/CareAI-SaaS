@@ -24,7 +24,11 @@ import DoctorPrescriptionsPage from '../pages/doctor/DoctorPrescriptionsPage';
 import DoctorAvailabilityPage from '../pages/doctor/DoctorAvailabilityPage';
 import AdminDashboardPage from '../pages/admin/AdminDashboardPage';
 import LabDashboardPage from '../pages/lab/LabDashboardPage';
+import LabTestsListPage from '../pages/lab/LabTestsListPage';
+import LabTestDetailPage from '../pages/lab/LabTestDetailPage';
 import PharmacyDashboardPage from '../pages/pharmacy/PharmacyDashboardPage';
+import PharmacyPrescriptionsListPage from '../pages/pharmacy/PharmacyPrescriptionsListPage';
+import PharmacyPrescriptionDetailPage from '../pages/pharmacy/PharmacyPrescriptionDetailPage';
 import NotificationsPage from '../pages/common/NotificationsPage';
 import PatientMedicalDocumentsPage from '../pages/patient/PatientMedicalDocumentsPage';
 import PatientLabReportsPage from '../pages/patient/PatientLabReportsPage';
@@ -136,6 +140,8 @@ export function AppRoutes() {
       >
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<LabDashboardPage />} />
+        <Route path="tests" element={<LabTestsListPage />} />
+        <Route path="tests/:id" element={<LabTestDetailPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
       </Route>
 
@@ -150,6 +156,8 @@ export function AppRoutes() {
       >
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<PharmacyDashboardPage />} />
+        <Route path="prescriptions" element={<PharmacyPrescriptionsListPage />} />
+        <Route path="prescriptions/:id" element={<PharmacyPrescriptionDetailPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
       </Route>
 

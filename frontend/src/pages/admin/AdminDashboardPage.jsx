@@ -15,12 +15,15 @@ import {
   FileText,
   AlertCircle,
   UserCheck,
+  UserPlus,
   Zap,
+  X,
 } from 'lucide-react';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import Badge from '../../components/common/Badge';
 import doctorService from '../../services/doctorService';
+import adminService from '../../services/adminService';
 import dashboardService from '../../services/dashboardService';
 import { formatDateTime, formatDate } from '../../utils/formatters';
 
@@ -30,6 +33,17 @@ export function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [actionMessage, setActionMessage] = useState(null);
+
+  // Staff Provisioning Modal State
+  const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
+  const [staffFullName, setStaffFullName] = useState('');
+  const [staffEmail, setStaffEmail] = useState('');
+  const [staffPassword, setStaffPassword] = useState('');
+  const [staffPhone, setStaffPhone] = useState('');
+  const [staffRole, setStaffRole] = useState('LAB_TECHNICIAN');
+  const [staffSubmitting, setStaffSubmitting] = useState(false);
+  const [staffError, setStaffError] = useState(null);
+
 
   useEffect(() => {
     loadAdminDashboard();
@@ -63,6 +77,40 @@ export function AdminDashboardPage() {
       loadAdminDashboard();
     } catch (err) {
       console.error('Review action failed:', err);
+    }
+  };
+
+  const handleProvisionStaff = async (e) => {
+    e.preventDefault();
+    if (!staffFullName.trim() || !staffEmail.trim() || !staffPassword.trim()) {
+      setStaffError('Please enter full name, email address, and temporary password.');
+      return;
+    }
+
+    try {
+      setStaffSubmitting(true);
+      setStaffError(null);
+      await adminService.provisionStaff({
+        full_name: staffFullName.trim(),
+        email: staffEmail.trim().toLowerCase(),
+        password: staffPassword,
+        phone_number: staffPhone.trim() || undefined,
+        role: staffRole,
+      });
+
+      setActionMessage(`Privileged staff account for ${staffFullName.trim()} (${staffRole}) successfully provisioned.`);
+      setIsStaffModalOpen(false);
+      setStaffFullName('');
+      setStaffEmail('');
+      setStaffPassword('');
+      setStaffPhone('');
+      setStaffRole('LAB_TECHNICIAN');
+      loadAdminDashboard();
+    } catch (err) {
+      console.error('Staff provisioning failed:', err);
+      setStaffError(err.message || 'Failed to provision staff account. Please verify input.');
+    } finally {
+      setStaffSubmitting(false);
     }
   };
 
@@ -102,15 +150,34 @@ export function AdminDashboardPage() {
   return (
     <div className="animate-fade-in">
       {/* Header */}
-      <div style={{ marginBottom: '2rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem' }}>
-          <h1 style={{ fontSize: '1.875rem' }}>System Administration Portal</h1>
-          <Badge variant="rose">Superuser</Badge>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem' }}>
+            <h1 style={{ fontSize: '1.875rem' }}>System Administration Portal</h1>
+            <Badge variant="rose">Superuser</Badge>
+          </div>
+          <p style={{ color: 'var(--secondary-500)', fontSize: '0.9375rem' }}>
+            Real-time system telemetry, clinical credential moderation, privacy-conscious audit logs, and AI safety metrics.
+          </p>
         </div>
-        <p style={{ color: 'var(--secondary-500)', fontSize: '0.9375rem' }}>
-          Real-time system telemetry, clinical credential moderation, privacy-conscious audit logs, and AI safety metrics.
-        </p>
+
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <Button
+            variant="primary"
+            icon={UserPlus}
+            onClick={() => {
+              setStaffError(null);
+              setIsStaffModalOpen(true);
+            }}
+          >
+            Provision Staff Account
+          </Button>
+          <Link to="/admin/lab-catalog" className="btn btn-secondary">
+            <FlaskConical size={16} /> Manage Lab Catalog
+          </Link>
+        </div>
       </div>
+
 
       {actionMessage && (
         <div
@@ -429,8 +496,178 @@ export function AdminDashboardPage() {
           </div>
         </Card>
       </div>
+
+      {/* Staff Provisioning Modal */}
+      {isStaffModalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+          }}
+        >
+          <div
+            className="animate-fade-in"
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: 'var(--radius-lg)',
+              maxWidth: '520px',
+              width: '100%',
+              boxShadow: 'var(--shadow-xl)',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Modal Header */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '1.25rem 1.5rem',
+                borderBottom: '1px solid var(--secondary-200)',
+                background: 'var(--primary-50)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+                <div style={{ background: 'var(--primary-600)', color: '#ffffff', padding: '0.4rem', borderRadius: '8px' }}>
+                  <UserPlus size={18} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.125rem', fontWeight: 800, color: 'var(--secondary-900)' }}>
+                    Provision Privileged Staff Account
+                  </h3>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--secondary-500)' }}>
+                    Admin-controlled access for Lab Technicians and Pharmacy Staff
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsStaffModalOpen(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--secondary-400)' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Modal Body / Form */}
+            <form onSubmit={handleProvisionStaff} style={{ padding: '1.5rem' }}>
+              {staffError && (
+                <div
+                  style={{
+                    background: '#fff1f2',
+                    border: '1px solid #fecdd3',
+                    color: '#be123c',
+                    padding: '0.75rem 1rem',
+                    borderRadius: 'var(--radius-md)',
+                    fontSize: '0.8125rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    marginBottom: '1rem',
+                  }}
+                >
+                  <AlertCircle size={16} />
+                  <span>{staffError}</span>
+                </div>
+              )}
+
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label className="form-label">Privileged Staff Role</label>
+                <select
+                  className="form-input"
+                  value={staffRole}
+                  disabled={staffSubmitting}
+                  onChange={(e) => setStaffRole(e.target.value)}
+                >
+                  <option value="LAB_TECHNICIAN">Lab Technician (Diagnostic Workspace)</option>
+                  <option value="PHARMACY_STAFF">Pharmacy Staff (Dispensary Fulfillment)</option>
+                  <option value="ADMIN">System Administrator (Full Governance)</option>
+                </select>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label className="form-label">Full Name & Professional Title</label>
+                <input
+                  type="text"
+                  required
+                  className="form-input"
+                  placeholder="e.g. Alex Rivera, Senior Lab Specialist"
+                  value={staffFullName}
+                  disabled={staffSubmitting}
+                  onChange={(e) => setStaffFullName(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label className="form-label">Official Work Email</label>
+                <input
+                  type="email"
+                  required
+                  className="form-input"
+                  placeholder="staff.name@careai.com"
+                  value={staffEmail}
+                  disabled={staffSubmitting}
+                  onChange={(e) => setStaffEmail(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label className="form-label">Temporary Initial Password</label>
+                <input
+                  type="password"
+                  required
+                  className="form-input"
+                  placeholder="Minimum 8 characters with upper/lowercase & numbers"
+                  value={staffPassword}
+                  disabled={staffSubmitting}
+                  onChange={(e) => setStaffPassword(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                <label className="form-label">Contact Phone Number (Optional)</label>
+                <input
+                  type="tel"
+                  className="form-input"
+                  placeholder="+1 (555) 000-0000"
+                  value={staffPhone}
+                  disabled={staffSubmitting}
+                  onChange={(e) => setStaffPhone(e.target.value)}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={staffSubmitting}
+                  onClick={() => setIsStaffModalOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  icon={UserPlus}
+                  disabled={staffSubmitting}
+                >
+                  {staffSubmitting ? 'Provisioning Account...' : 'Provision Staff Account'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 export default AdminDashboardPage;
+

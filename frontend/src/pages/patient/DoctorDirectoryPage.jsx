@@ -124,13 +124,19 @@ export function DoctorDirectoryPage() {
       setSubmitting(true);
       setBookingError(null);
 
-      // Combine date and time to ISO format
-      const scheduledStart = new Date(`${bookingDate}T${bookingTime}:00`);
-      if (scheduledStart <= new Date()) {
-        setBookingError('Consultation time must be scheduled in the future.');
+      // Combine date and time to ISO format safely
+      const timeParts = bookingTime.split(':');
+      const hours = parseInt(timeParts[0], 10) || 0;
+      const minutes = parseInt(timeParts[1], 10) || 0;
+      const [year, month, day] = bookingDate.split('-').map(Number);
+      const scheduledStart = new Date(year, month - 1, day, hours, minutes, 0);
+
+      if (isNaN(scheduledStart.getTime()) || scheduledStart <= new Date()) {
+        setBookingError('Consultation time must be valid and scheduled in the future.');
         setSubmitting(false);
         return;
       }
+
 
       await appointmentService.createAppointment({
         doctor_id: selectedDoctor.id,

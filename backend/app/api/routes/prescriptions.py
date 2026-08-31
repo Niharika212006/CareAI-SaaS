@@ -168,7 +168,7 @@ def get_prescription_by_id(
         )
 
     # RBAC security check
-    if current_user.role != UserRole.ADMIN:
+    if current_user.role not in [UserRole.ADMIN, UserRole.PHARMACY_STAFF]:
         is_patient_owner = prescription.patient and prescription.patient.user_id == current_user.id
         is_doctor_owner = prescription.doctor and prescription.doctor.user_id == current_user.id
         if not (is_patient_owner or is_doctor_owner):
@@ -178,3 +178,4 @@ def get_prescription_by_id(
             )
 
     return prescription
+

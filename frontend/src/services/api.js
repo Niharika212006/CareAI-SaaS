@@ -16,11 +16,18 @@ class ApiClient {
     const url = `${this.baseUrl}${endpoint}`;
     const token = this.getToken();
 
+    const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
+
     const headers = {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
+      Accept: 'application/json, */*',
       ...options.headers,
     };
+
+    if (!isFormData && !headers['Content-Type']) {
+      headers['Content-Type'] = 'application/json';
+    } else if (isFormData) {
+      delete headers['Content-Type'];
+    }
 
     if (token) {
       headers.Authorization = `Bearer ${token}`;
@@ -41,6 +48,14 @@ class ApiClient {
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('auth:unauthorized'));
         }
+      }
+
+      if (options.responseType === 'blob') {
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => '');
+          throw new Error(errorText || `Download failed with status ${response.status}`);
+        }
+        return await response.blob();
       }
 
       const data = await response.json().catch(() => null);
@@ -75,24 +90,27 @@ class ApiClient {
   }
 
   post(endpoint, body, options = {}) {
+    const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
     return this.request(endpoint, {
       ...options,
       method: 'POST',
-      body: JSON.stringify(body),
+      body: isFormData ? body : (typeof body === 'string' ? body : JSON.stringify(body)),
     });
   }
 
   put(endpoint, body, options = {}) {
+    const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
     return this.request(endpoint, {
       ...options,
       method: 'PUT',
-      body: JSON.stringify(body),
+      body: isFormData ? body : (typeof body === 'string' ? body : JSON.stringify(body)),
     });
   }
 
   delete(endpoint, options = {}) {
     return this.request(endpoint, { ...options, method: 'DELETE' });
   }
+
 }
 
 export const api = new ApiClient();

@@ -73,11 +73,19 @@ export const doctorService = {
   },
 
   /**
-   * Remove an unavailable date entry.
+   * Retrieve list of doctor applications pending administrative review (Admin).
    */
-  async deleteUnavailableDate(unavailableId) {
-    return await api.delete(`/doctors/unavailable-dates/${unavailableId}`);
+  async getPendingDoctors(skip = 0, limit = 50) {
+    return await api.get(`/admin/pending-doctors?skip=${skip}&limit=${limit}`);
+  },
+
+  /**
+   * Update doctor application approval status (Admin).
+   */
+  async reviewDoctor(doctorId, approvalData) {
+    return await api.put(`/admin/doctors/${doctorId}/approval`, approvalData);
   },
 };
 
 export default doctorService;
+

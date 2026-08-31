@@ -3,6 +3,7 @@ from datetime import date, datetime
 from typing import List, Optional
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
+from app.models.prescription import PrescriptionStatus
 from app.schemas.patient import PatientProfileRead
 from app.schemas.doctor import DoctorProfileRead
 
@@ -87,7 +88,7 @@ class PrescriptionCreate(PrescriptionBase):
 
 
 class PrescriptionRead(BaseModel):
-    """Schema for reading a comprehensive digital prescription with items and doctor details."""
+    """Schema for reading a comprehensive digital prescription with items, doctor details, and pharmacy status."""
     id: int
     appointment_id: Optional[int] = None
     patient_id: int
@@ -97,6 +98,11 @@ class PrescriptionRead(BaseModel):
     clinical_notes: Optional[str] = None
     notes: Optional[str] = None
     valid_until: Optional[date] = None
+    status: PrescriptionStatus = PrescriptionStatus.PRESCRIBED
+    pharmacy_notes: Optional[str] = None
+    dispensed_at: Optional[datetime] = None
+    dispensed_by_user_id: Optional[int] = None
+    dispensed_by_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     items: List[PrescriptionItemRead] = []
@@ -114,3 +120,4 @@ class PrescriptionRead(BaseModel):
         return self
 
     model_config = ConfigDict(from_attributes=True)
+
