@@ -11,6 +11,18 @@ from app.models.notification import Notification, NotificationType, Notification
 from app.models.medical_document import MedicalDocument, DocumentType
 from app.models.document_analysis import MedicalDocumentAnalysis, AnalysisStatus
 from app.models.ai_assistant import AIConversation, AIMessage
+from app.models.lab import (
+    LabTest,
+    LabOrder,
+    LabOrderItem,
+    LabSample,
+    LabResult,
+    LabAuditEvent,
+    LabOrderPriority,
+    LabOrderStatus,
+    SampleCondition,
+    ResultFlag,
+)
 
 __all__ = [
     "TimeStampedModel",
@@ -36,4 +48,14 @@ __all__ = [
     "AnalysisStatus",
     "AIConversation",
     "AIMessage",
+    "LabTest",
+    "LabOrder",
+    "LabOrderItem",
+    "LabSample",
+    "LabResult",
+    "LabAuditEvent",
+    "LabOrderPriority",
+    "LabOrderStatus",
+    "SampleCondition",
+    "ResultFlag",
 ]

@@ -26,6 +26,7 @@ export function Sidebar() {
     { to: '/patient/profile', label: 'Health Profile', icon: UserCheck },
     { to: '/patient/documents', label: 'Medical Records', icon: FolderOpen },
     { to: '/patient/prescriptions', label: 'My Prescriptions', icon: FileText },
+    { to: '/patient/lab-reports', label: 'Diagnostic Reports', icon: FlaskConical },
     { to: '/patient/appointments', label: 'Appointments', icon: Calendar },
     { to: '/doctors', label: 'Find Doctors', icon: Search },
     { to: '/notifications', label: 'Notifications', icon: Bell },
@@ -37,6 +38,7 @@ export function Sidebar() {
     { to: '/doctor/appointments', label: 'Patient Consultations', icon: Calendar },
     { to: '/doctor/availability', label: 'Working Schedule', icon: Clock },
     { to: '/doctor/prescriptions', label: 'Prescription Writer', icon: FileText },
+    { to: '/doctor/lab-orders', label: 'Diagnostic Lab Orders', icon: FlaskConical },
     { to: '/doctor/ai-analyzer', label: 'AI Drug Safety', icon: Sparkles },
     { to: '/notifications', label: 'Notifications', icon: Bell },
   ];
@@ -45,6 +47,7 @@ export function Sidebar() {
     { to: '/admin/dashboard', label: 'Admin Overview', icon: LayoutDashboard },
     { to: '/admin/doctors', label: 'Doctor Verifications', icon: ShieldAlert },
     { to: '/admin/users', label: 'User Directory', icon: Users },
+    { to: '/admin/lab-catalog', label: 'Lab Test Catalog', icon: FlaskConical },
     { to: '/notifications', label: 'Notifications', icon: Bell },
   ];
 

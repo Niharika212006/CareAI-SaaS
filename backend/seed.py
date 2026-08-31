@@ -334,6 +334,131 @@ def seed_database():
                 db.add(ai_report)
                 print("  [OK] Sample consultation, prescription & AI safety report created!")
 
+        # 6. Lab Test Catalog Seeding
+        from app.models.lab import (
+            LabTest,
+            LabOrder,
+            LabOrderItem,
+            LabSample,
+            LabResult,
+            LabAuditEvent,
+            LabOrderPriority,
+            LabOrderStatus,
+            SampleCondition,
+            ResultFlag,
+        )
+
+        catalog_tests = [
+            {
+                "name": "Complete Blood Count (CBC) with Differential",
+                "code": "CBC-001",
+                "category": "Hematology",
+                "specimen": "Whole Blood (EDTA)",
+                "ref_range": "WBC: 4.5-11.0, HGB: 12.0-17.5, PLT: 150-450",
+                "unit": "Mixed",
+                "prep": "No special fasting required.",
+                "tat": "2-4 hours",
+                "description": "Measures red cells, white blood cells, hemoglobin, hematocrit, and platelet counts.",
+            },
+            {
+                "name": "Comprehensive Metabolic Panel (CMP-14)",
+                "code": "CMP-002",
+                "category": "Biochemistry",
+                "specimen": "Serum (SST)",
+                "ref_range": "Glucose: 70-99, Na: 135-145, K: 3.5-5.0",
+                "unit": "mg/dL / mmol/L",
+                "prep": "Fasting 8-12 hours required prior to collection.",
+                "tat": "4-6 hours",
+                "description": "Evaluates kidney function, liver function, blood sugar, and electrolyte levels.",
+            },
+            {
+                "name": "Lipid Panel with Total Cholesterol / HDL / LDL",
+                "code": "LIPID-003",
+                "category": "Biochemistry",
+                "specimen": "Serum (SST)",
+                "ref_range": "Total Chol: < 200, HDL: > 40, LDL: < 100",
+                "unit": "mg/dL",
+                "prep": "Fasting 9-12 hours required.",
+                "tat": "4 hours",
+                "description": "Assesses cardiovascular risk by measuring blood lipid fractions.",
+            },
+            {
+                "name": "Thyroid Stimulating Hormone (TSH)",
+                "code": "TSH-004",
+                "category": "Hormonal Tests",
+                "specimen": "Serum",
+                "ref_range": "0.40 - 4.50",
+                "unit": "uIU/mL",
+                "prep": "Take morning blood draw before daily thyroid medications if applicable.",
+                "tat": "6-12 hours",
+                "description": "Screens for thyroid gland disorders including hypothyroidism and hyperthyroidism.",
+            },
+            {
+                "name": "Hemoglobin A1c (Glycated Hemoglobin)",
+                "code": "HBA1C-005",
+                "category": "Biochemistry",
+                "specimen": "Whole Blood (EDTA)",
+                "ref_range": "< 5.7 (Normal), 5.7-6.4 (Prediabetes), >= 6.5 (Diabetes)",
+                "unit": "%",
+                "prep": "No fasting required.",
+                "tat": "3 hours",
+                "description": "Measures average blood glucose concentration over the prior 2-3 months.",
+            },
+            {
+                "name": "Routine Urinalysis with Microscopic Examination",
+                "code": "URINE-006",
+                "category": "Microbiology",
+                "specimen": "Clean Catch Midstream Urine",
+                "ref_range": "Protein: Negative, Glucose: Negative, Nitrite: Negative",
+                "unit": "Qualitative",
+                "prep": "Collect clean catch midstream sample using sterile collection kit.",
+                "tat": "1-2 hours",
+                "description": "Screening test for renal pathology, urinary tract infection, and metabolic disorders.",
+            },
+            {
+                "name": "High-Sensitivity Cardiac Troponin I",
+                "code": "TROP-007",
+                "category": "Biochemistry",
+                "specimen": "Plasma (Lithium Heparin)",
+                "ref_range": "< 0.04",
+                "unit": "ng/mL",
+                "prep": "Immediate STAT draw for acute cardiac evaluation.",
+                "tat": "30-60 minutes",
+                "description": "Biomarker for myocardial necrosis and acute coronary syndrome.",
+            },
+            {
+                "name": "Serum Electrolytes Panel (Na, K, Cl, CO2)",
+                "code": "ELEC-008",
+                "category": "Biochemistry",
+                "specimen": "Serum",
+                "ref_range": "Na: 135-145, K: 3.5-5.0, Cl: 96-106, CO2: 23-29",
+                "unit": "mmol/L",
+                "prep": "Standard draw without hemolysis.",
+                "tat": "2 hours",
+                "description": "Measures body fluid balance and acid-base equilibrium.",
+            },
+        ]
+
+        for item in catalog_tests:
+            existing_t = db.query(LabTest).filter(LabTest.test_code == item["code"]).first()
+            if not existing_t:
+                db.add(
+                    LabTest(
+                        test_name=item["name"],
+                        test_code=item["code"],
+                        category=item["category"],
+                        specimen_type=item["specimen"],
+                        reference_range=item["ref_range"],
+                        unit=item["unit"],
+                        preparation_instructions=item["prep"],
+                        estimated_turnaround_time=item["tat"],
+                        description=item["description"],
+                        is_active=True,
+                    )
+                )
+        db.flush()
+        print("  [OK] Lab Test Catalog populated (8 standardized tests).")
+
         db.commit()
         print("\n[SUCCESS] CareAI demo data seeded successfully!")
     except Exception as e:

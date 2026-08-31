@@ -14,6 +14,7 @@ from app.api.routes.notifications import router as notifications_router
 from app.api.routes.medical_documents import router as medical_documents_router, doctor_router as doctor_documents_router
 from app.api.routes.document_analyses import router as document_analyses_router
 from app.api.routes.ai_assistant import router as ai_assistant_router
+from app.api.routes.lab import router as lab_router
 
 api_router = APIRouter()
 
@@ -31,4 +32,5 @@ api_router.include_router(medical_documents_router)
 api_router.include_router(doctor_documents_router)
 api_router.include_router(document_analyses_router)
 api_router.include_router(ai_assistant_router)
+api_router.include_router(lab_router)
 

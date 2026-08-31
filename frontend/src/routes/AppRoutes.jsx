@@ -27,6 +27,9 @@ import LabDashboardPage from '../pages/lab/LabDashboardPage';
 import PharmacyDashboardPage from '../pages/pharmacy/PharmacyDashboardPage';
 import NotificationsPage from '../pages/common/NotificationsPage';
 import PatientMedicalDocumentsPage from '../pages/patient/PatientMedicalDocumentsPage';
+import PatientLabReportsPage from '../pages/patient/PatientLabReportsPage';
+import DoctorLabOrdersPage from '../pages/doctor/DoctorLabOrdersPage';
+import AdminLabCatalogPage from '../pages/admin/AdminLabCatalogPage';
 
 export function AppRoutes() {
   return (
@@ -77,6 +80,7 @@ export function AppRoutes() {
         <Route path="profile" element={<PatientMedicalProfilePage />} />
         <Route path="medical-profile" element={<PatientMedicalProfilePage />} />
         <Route path="prescriptions" element={<PatientPrescriptionsPage />} />
+        <Route path="lab-reports" element={<PatientLabReportsPage />} />
         <Route path="appointments" element={<PatientAppointmentsPage />} />
         <Route path="documents" element={<PatientMedicalDocumentsPage />} />
         <Route path="records" element={<PatientMedicalDocumentsPage />} />
@@ -97,6 +101,7 @@ export function AppRoutes() {
         <Route path="profile" element={<DoctorDashboardPage />} />
         <Route path="appointments" element={<DoctorAppointmentsPage />} />
         <Route path="prescriptions" element={<DoctorPrescriptionsPage />} />
+        <Route path="lab-orders" element={<DoctorLabOrdersPage />} />
         <Route path="availability" element={<DoctorAvailabilityPage />} />
         <Route path="schedule" element={<DoctorAvailabilityPage />} />
         <Route path="ai-analyzer" element={<DoctorDashboardPage />} />
@@ -116,6 +121,7 @@ export function AppRoutes() {
         <Route path="dashboard" element={<AdminDashboardPage />} />
         <Route path="doctors" element={<AdminDashboardPage />} />
         <Route path="users" element={<AdminDashboardPage />} />
+        <Route path="lab-catalog" element={<AdminLabCatalogPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
       </Route>
 
