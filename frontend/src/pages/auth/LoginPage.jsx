@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogIn, Activity, AlertCircle, Sparkles, User, Stethoscope, Shield, FlaskConical, Pill } from 'lucide-react';
+import { LogIn, Activity, AlertCircle } from 'lucide-react';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import useAuth from '../../hooks/useAuth';
@@ -71,102 +71,29 @@ export function LoginPage() {
     }
   };
 
-  const handleQuickFill = (demoEmail, demoPassword) => {
-    setEmail(demoEmail);
-    setPassword(demoPassword);
-    setError(null);
-  };
-
   return (
-    <Card className="glass-panel" style={{ padding: '2rem' }}>
-      <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+    <Card className="glass-panel" style={{ padding: '2.5rem 2rem' }}>
+      <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
         <div
           style={{
             background: 'linear-gradient(135deg, var(--primary-600) 0%, var(--accent-blue) 100%)',
             color: '#ffffff',
-            width: '48px',
-            height: '48px',
-            borderRadius: '12px',
+            width: '52px',
+            height: '52px',
+            borderRadius: '14px',
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            marginBottom: '0.75rem',
+            marginBottom: '1rem',
             boxShadow: 'var(--shadow-sm)',
           }}
         >
-          <Activity size={24} />
+          <Activity size={26} />
         </div>
-        <h2 style={{ fontSize: '1.5rem', marginBottom: '0.25rem', fontWeight: 800 }}>Welcome Back</h2>
+        <h2 style={{ fontSize: '1.5rem', marginBottom: '0.375rem', fontWeight: 800 }}>Welcome Back</h2>
         <p style={{ fontSize: '0.875rem', color: 'var(--secondary-500)' }}>
           Sign in to access your healthcare portal
         </p>
-      </div>
-
-      {/* Demo Credentials Quick Fill Bar */}
-      <div
-        style={{
-          background: 'var(--primary-50)',
-          border: '1px solid var(--primary-100)',
-          borderRadius: 'var(--radius-md)',
-          padding: '0.75rem',
-          marginBottom: '1.25rem',
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.375rem',
-            fontSize: '0.75rem',
-            fontWeight: 700,
-            color: 'var(--primary-800)',
-            marginBottom: '0.5rem',
-          }}
-        >
-          <Sparkles size={13} /> Demo One-Click Fill:
-        </div>
-        <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-            onClick={() => handleQuickFill('patient.john@example.com', 'PatientPass123!')}
-          >
-            <User size={12} /> Patient
-          </button>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-            onClick={() => handleQuickFill('dr.sarah@careai.com', 'DoctorPass123!')}
-          >
-            <Stethoscope size={12} /> Doctor
-          </button>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-            onClick={() => handleQuickFill('pillu.212006@gmail.com', 'Neha@6328')}
-          >
-            <Shield size={12} /> Admin
-          </button>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-            onClick={() => handleQuickFill('lab.tech@careai.com', 'LabTechPass123!')}
-          >
-            <FlaskConical size={12} /> Lab Tech
-          </button>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-            onClick={() => handleQuickFill('pharmacy.staff@careai.com', 'PharmacyPass123!')}
-          >
-            <Pill size={12} /> Pharmacy
-          </button>
-        </div>
       </div>
 
       {error && (
@@ -181,7 +108,7 @@ export function LoginPage() {
             display: 'flex',
             alignItems: 'center',
             gap: '0.5rem',
-            marginBottom: '1.25rem',
+            marginBottom: '1.5rem',
           }}
         >
           <AlertCircle size={18} />
@@ -190,8 +117,8 @@ export function LoginPage() {
       )}
 
       <form onSubmit={handleSubmit}>
-        <div className="form-group">
-          <label className="form-label">Email Address</label>
+        <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+          <label className="form-label" style={{ marginBottom: '0.375rem', display: 'block' }}>Email Address</label>
           <input
             type="email"
             required
@@ -203,8 +130,8 @@ export function LoginPage() {
           />
         </div>
 
-        <div className="form-group">
-          <label className="form-label">Password</label>
+        <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+          <label className="form-label" style={{ marginBottom: '0.375rem', display: 'block' }}>Password</label>
           <input
             type="password"
             required
@@ -220,14 +147,14 @@ export function LoginPage() {
           type="submit"
           disabled={loading}
           variant="primary"
-          style={{ width: '100%', marginTop: '0.5rem' }}
+          style={{ width: '100%', padding: '0.75rem' }}
           icon={LogIn}
         >
           {loading ? 'Authenticating...' : 'Sign In'}
         </Button>
       </form>
 
-      <div style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '0.875rem', color: 'var(--secondary-500)' }}>
+      <div style={{ marginTop: '1.75rem', textAlign: 'center', fontSize: '0.875rem', color: 'var(--secondary-500)' }}>
         Don't have an account?{' '}
         <Link to="/register" style={{ color: 'var(--primary-600)', fontWeight: 600, textDecoration: 'none' }}>
           Create an Account
