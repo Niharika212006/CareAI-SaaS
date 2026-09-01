@@ -1,7 +1,8 @@
 """Pydantic schemas for the Lab Management and Diagnostic Workflow."""
+import json
 from datetime import datetime
-from typing import List, Optional
-from pydantic import BaseModel, ConfigDict, Field
+from typing import List, Optional, Any
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.models.lab import (
     LabOrderPriority,
@@ -141,7 +142,15 @@ class LabAuditEventRead(BaseModel):
     action: str
     performed_by_user_id: int
     performed_by_name: Optional[str] = None
-    details: Optional[str] = None
+    details: Optional[Any] = None
+
+    @field_validator("details", mode="before")
+    @classmethod
+    def format_details(cls, v):
+        if isinstance(v, dict):
+            return v.get("message") or json.dumps(v)
+        return v
+
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

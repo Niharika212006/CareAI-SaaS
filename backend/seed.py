@@ -4,9 +4,11 @@ Idempotent: safely re-executable without creating duplicate records or altering 
 """
 import os
 import sys
+import json
 from datetime import date, time, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Optional, List, Dict, Any
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.database.session import SessionLocal
@@ -1050,6 +1052,16 @@ def seed_database(db: Optional[Session] = None):
         # 7. ACTIVE DIAGNOSTIC LAB ORDERS IN MULTIPLE STAGES
         # -------------------------------------------------------------
         print("\n--- 7. Seeding Diagnostic Lab Orders ---")
+        # Sanitize any legacy plain string audit event details to valid JSON dicts
+        try:
+            raw_events = db.execute(text("SELECT id, details FROM lab_audit_events WHERE details IS NOT NULL")).fetchall()
+            for evt_id, evt_details in raw_events:
+                if evt_details and isinstance(evt_details, str) and not evt_details.strip().startswith("{") and not evt_details.strip().startswith("["):
+                    valid_json_str = '{"message": ' + json.dumps(evt_details) + '}'
+                    db.execute(text("UPDATE lab_audit_events SET details = :val WHERE id = :id"), {"val": valid_json_str, "id": evt_id})
+            db.flush()
+        except Exception:
+            pass
         if sarah_prof and john_prof and lab_tests_map.get("CBC-001") and lab_tests_map.get("TROP-007"):
             # Lab Order 1: STAT Order in SAMPLE_PENDING
             order1 = db.query(LabOrder).filter(
@@ -1087,7 +1099,7 @@ def seed_database(db: Optional[Session] = None):
                     lab_order_id=order1.id,
                     action="ORDER_CREATED",
                     performed_by_user_id=sarah_prof.user_id,
-                    details="STAT Lab Order placed by Dr. Sarah Jenkins",
+                    details={"message": "STAT Lab Order placed by Dr. Sarah Jenkins"},
                 ))
                 print("  [OK] Lab Order #1 created (STAT priority, SAMPLE_PENDING stage).")
 
@@ -1131,7 +1143,7 @@ def seed_database(db: Optional[Session] = None):
                     lab_order_id=order2.id,
                     action="SAMPLE_COLLECTED",
                     performed_by_user_id=lab_tech.id if lab_tech else 1,
-                    details="Specimen collected and verified by Lab Tech P. Vinay",
+                    details={"message": "Specimen collected and verified by Lab Tech P. Vinay"},
                 ))
                 print("  [OK] Lab Order #2 created (ROUTINE priority, IN_PROGRESS stage).")
 
@@ -1193,7 +1205,7 @@ def seed_database(db: Optional[Session] = None):
                     lab_order_id=order3.id,
                     action="RESULTS_RELEASED",
                     performed_by_user_id=lab_tech.id if lab_tech else 1,
-                    details="Diagnostic results verified and released to patient health record by P. Vinay.",
+                    details={"message": "Diagnostic results verified and released to patient health record by P. Vinay."},
                 ))
                 print("  [OK] Lab Order #3 created (RELEASED to patient portal stage).")
 

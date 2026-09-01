@@ -28,7 +28,7 @@ from app.models.availability import DoctorAvailability
 from app.models.patient import PatientProfile
 from app.models.appointment import Appointment
 from app.models.prescription import Prescription
-from app.models.lab import LabOrder, LabResult
+from app.models.lab import LabOrder, LabResult, LabAuditEvent, LabOrderPriority
 from app.models.notification import Notification
 from app.core.security import verify_password
 from seed import seed_database
@@ -200,6 +200,35 @@ def run_full_verification():
     ananya_days = sorted([a.day_of_week for a in doc_ananya.availabilities if a.is_active])
     assert ananya_days == [0, 4, 6], f"Expected Mon/Fri/Sun [0, 4, 6], got {ananya_days}"
     print(f"  [OK] Dr. Ananya Sharma verified: Gynecology, 10 yrs exp, Rs. {doc_ananya.consultation_fee}, Available days: {ananya_days} (Mon, Fri, Sun)")
+
+    # 7. Verify PostgreSQL-compatible JSON field validity
+    print("\n[STEP 7] Verifying PostgreSQL-Compatible JSON Structure...")
+    audit_events = db.query(LabAuditEvent).all()
+    assert len(audit_events) >= 3, "Expected at least 3 LabAuditEvents"
+    for event in audit_events:
+        assert isinstance(event.details, dict), f"LabAuditEvent.details must be a dict! Got: {type(event.details)}: {event.details}"
+        assert "message" in event.details, f"LabAuditEvent.details must contain 'message' key! Got: {event.details}"
+    print(f"  [OK] All {len(audit_events)} LabAuditEvent.details records are valid JSON dictionaries.")
+
+    # Check PatientProfile JSON fields
+    pat_profs = db.query(PatientProfile).all()
+    for prof in pat_profs:
+        assert isinstance(prof.allergies, list), f"PatientProfile.allergies must be list! Got: {type(prof.allergies)}"
+        assert isinstance(prof.chronic_conditions, list), f"PatientProfile.chronic_conditions must be list! Got: {type(prof.chronic_conditions)}"
+        assert isinstance(prof.current_medications, list), f"PatientProfile.current_medications must be list! Got: {type(prof.current_medications)}"
+    print(f"  [OK] All {len(pat_profs)} PatientProfile JSON fields verified as valid JSON lists.")
+
+    # Check Lab API endpoint returns formatted audit details
+    order1 = db.query(LabOrder).filter(LabOrder.priority == LabOrderPriority.STAT).first()
+    assert order1 is not None
+    lab_tech_token = auth_tokens["Lab Tech"]
+    order_resp = client.get(f"/api/v1/lab/orders/{order1.id}", headers={"Authorization": f"Bearer {lab_tech_token}"})
+    assert order_resp.status_code == 200, f"Lab order detail fetch failed: {order_resp.text}"
+    order_data = order_resp.json()
+    assert len(order_data.get("audit_events", [])) > 0, "Expected audit events in lab order response"
+    event_details_str = order_data["audit_events"][0].get("details")
+    assert isinstance(event_details_str, str), f"Expected audit_event details to be string in API response! Got {type(event_details_str)}: {event_details_str}"
+    print(f"  [OK] API endpoint /api/v1/lab/orders/{order1.id} returned string-formatted audit event: '{event_details_str}'")
 
     db.close()
     app.dependency_overrides.clear()

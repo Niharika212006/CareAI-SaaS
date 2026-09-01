@@ -11,6 +11,7 @@ from sqlalchemy import (
     DateTime,
     Enum as SQLEnum,
     ForeignKey,
+    JSON,
 )
 from sqlalchemy.orm import relationship
 
@@ -270,7 +271,7 @@ class LabAuditEvent(Base):
         nullable=False,
         index=True,
     )
-    details = Column(Text, nullable=True)
+    details = Column(JSON, nullable=True)
     created_at = Column(
         DateTime,
         default=lambda: datetime.now(timezone.utc),

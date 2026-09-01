@@ -226,7 +226,7 @@ class LabService:
             lab_order_id=order.id,
             action="ORDER_CREATED",
             performed_by_user_id=doctor_user.id,
-            details=f"Doctor {doctor_user.full_name} created {order_in.priority.value} lab order with {len(order_in.items)} test(s).",
+            details={"message": f"Doctor {doctor_user.full_name} created {order_in.priority.value} lab order with {len(order_in.items)} test(s)."},
             created_at=now,
         )
         db.add(audit)
@@ -338,7 +338,7 @@ class LabService:
             lab_order_id=order.id,
             action="ORDER_CANCELLED",
             performed_by_user_id=user.id,
-            details=f"Cancelled by {user.full_name}. Reason: {reason or 'No reason provided.'}",
+            details={"message": f"Cancelled by {user.full_name}. Reason: {reason or 'No reason provided.'}"},
             created_at=datetime.now(timezone.utc),
         )
         db.add(audit)
@@ -437,7 +437,7 @@ class LabService:
                 lab_order_id=order.id,
                 action="SAMPLE_COLLECTED",
                 performed_by_user_id=tech_user.id,
-                details=f"Specimen ({sample_in.specimen_type}) collected by {tech_user.full_name}. Condition: ACCEPTABLE.",
+                details={"message": f"Specimen ({sample_in.specimen_type}) collected by {tech_user.full_name}. Condition: ACCEPTABLE."},
                 created_at=now,
             )
         else:
@@ -447,7 +447,7 @@ class LabService:
                 lab_order_id=order.id,
                 action="SAMPLE_REJECTED",
                 performed_by_user_id=tech_user.id,
-                details=f"Specimen ({sample_in.specimen_type}) rejected by {tech_user.full_name}. Condition: {sample_in.sample_condition.value}. Reason: {sample_in.collection_notes or 'Specimen integrity compromised'}. Recollection required.",
+                details={"message": f"Specimen ({sample_in.specimen_type}) rejected by {tech_user.full_name}. Condition: {sample_in.sample_condition.value}. Reason: {sample_in.collection_notes or 'Specimen integrity compromised'}. Recollection required."},
                 created_at=now,
             )
             # Notify ordering doctor about rejected sample
@@ -486,7 +486,7 @@ class LabService:
             lab_order_id=order.id,
             action="PROCESSING_STARTED",
             performed_by_user_id=tech_user.id,
-            details=f"Laboratory technician {tech_user.full_name} commenced analytical processing.",
+            details={"message": f"Laboratory technician {tech_user.full_name} commenced analytical processing."},
             created_at=now,
         )
         db.add(audit)
@@ -579,7 +579,7 @@ class LabService:
             lab_order_id=order.id,
             action="RESULTS_ENTERED",
             performed_by_user_id=tech_user.id,
-            details=audit_details,
+            details={"message": audit_details},
             created_at=now,
         )
         db.add(audit)
@@ -591,7 +591,7 @@ class LabService:
                     lab_order_id=order.id,
                     action="CRITICAL_RESULT_DETECTED",
                     performed_by_user_id=tech_user.id,
-                    details=f"CRITICAL VALUE: {test_name} = {val}. {expl}",
+                    details={"message": f"CRITICAL VALUE: {test_name} = {val}. {expl}"},
                     created_at=now,
                 )
                 db.add(crit_audit)
@@ -654,7 +654,7 @@ class LabService:
             lab_order_id=order.id,
             action="RESULTS_VERIFIED",
             performed_by_user_id=tech_user.id,
-            details=f"Clinical results verified by {tech_user.full_name}. Notes: {verification_notes or 'Verified against standard QC parameters.'}",
+            details={"message": f"Clinical results verified by {tech_user.full_name}. Notes: {verification_notes or 'Verified against standard QC parameters.'}"},
             created_at=now,
         )
         db.add(audit)
@@ -694,7 +694,7 @@ class LabService:
             lab_order_id=order.id,
             action="RESULTS_RELEASED",
             performed_by_user_id=tech_user.id,
-            details=f"Verified diagnostic report released by {tech_user.full_name} for patient access.",
+            details={"message": f"Verified diagnostic report released by {tech_user.full_name} for patient access."},
             created_at=now,
         )
         db.add(audit)
