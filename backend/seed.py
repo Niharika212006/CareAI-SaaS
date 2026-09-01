@@ -1,7 +1,12 @@
-"""Seed script to populate CareAI Healthcare SaaS with rich, connected demo data across all 5 roles."""
+"""Seed script to populate CareAI Healthcare SaaS with rich, connected demo data across all 5 roles.
+
+Idempotent: safely re-executable without creating duplicate records or altering existing production data.
+"""
 import os
 import sys
 from datetime import date, time, datetime, timedelta, timezone
+from decimal import Decimal
+from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
 
 from app.database.session import SessionLocal
@@ -31,78 +36,382 @@ from app.core.security import get_password_hash
 from app.core.storage import storage_service
 
 
-def seed_database():
-    db: Session = SessionLocal()
+def upsert_user(
+    db: Session,
+    email: str,
+    password: str,
+    full_name: str,
+    role: UserRole,
+    is_active: bool = True,
+    is_verified: bool = True,
+) -> User:
+    """Idempotently fetch or create a user by email, updating attributes if existing."""
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        user = User(
+            email=email,
+            hashed_password=get_password_hash(password),
+            full_name=full_name,
+            role=role,
+            is_active=is_active,
+            is_verified=is_verified,
+        )
+        db.add(user)
+        db.flush()
+        print(f"  [OK] Created {role.value}: {email} / {password} ({full_name})")
+    else:
+        user.hashed_password = get_password_hash(password)
+        user.full_name = full_name
+        user.role = role
+        user.is_active = is_active
+        user.is_verified = is_verified
+        db.flush()
+        print(f"  [OK] Updated {role.value}: {email} ({full_name})")
+    return user
+
+
+def upsert_doctor_profile(
+    db: Session,
+    user_id: int,
+    specialization: str,
+    license_number: str,
+    experience_years: int,
+    bio: str,
+    hospital_affiliation: str,
+    consultation_fee: float,
+    approval_status: DoctorApprovalStatus,
+) -> DoctorProfile:
+    """Idempotently fetch or create a doctor profile for a user."""
+    prof = db.query(DoctorProfile).filter(DoctorProfile.user_id == user_id).first()
+    if not prof:
+        # Also check if license already exists to avoid unique constraint violation
+        prof_by_license = db.query(DoctorProfile).filter(DoctorProfile.license_number == license_number).first()
+        if prof_by_license:
+            prof = prof_by_license
+            prof.user_id = user_id
+
+    if not prof:
+        prof = DoctorProfile(
+            user_id=user_id,
+            specialization=specialization,
+            license_number=license_number,
+            experience_years=experience_years,
+            bio=bio,
+            hospital_affiliation=hospital_affiliation,
+            consultation_fee=Decimal(str(consultation_fee)),
+            approval_status=approval_status,
+        )
+        db.add(prof)
+        db.flush()
+    else:
+        prof.specialization = specialization
+        prof.license_number = license_number
+        prof.experience_years = experience_years
+        prof.bio = bio
+        prof.hospital_affiliation = hospital_affiliation
+        prof.consultation_fee = Decimal(str(consultation_fee))
+        prof.approval_status = approval_status
+        db.flush()
+    return prof
+
+
+def sync_doctor_availabilities(db: Session, doctor_id: int, schedules: List[Dict[str, Any]]):
+    """Sync weekly availability slots for a doctor without creating duplicates."""
+    existing_availabilities = (
+        db.query(DoctorAvailability)
+        .filter(DoctorAvailability.doctor_id == doctor_id)
+        .all()
+    )
+    existing_by_day = {a.day_of_week: a for a in existing_availabilities}
+
+    for s in schedules:
+        day = s["day"]
+        start_t = s["start"]
+        end_t = s["end"]
+        duration = s.get("duration", 30)
+
+        if day in existing_by_day:
+            avail = existing_by_day[day]
+            avail.start_time = start_t
+            avail.end_time = end_t
+            avail.slot_duration_minutes = duration
+            avail.is_active = True
+        else:
+            new_avail = DoctorAvailability(
+                doctor_id=doctor_id,
+                day_of_week=day,
+                start_time=start_t,
+                end_time=end_t,
+                slot_duration_minutes=duration,
+                is_active=True,
+            )
+            db.add(new_avail)
+    db.flush()
+
+
+def upsert_patient_profile(db: Session, user_id: int, profile_data: Dict[str, Any]) -> PatientProfile:
+    """Idempotently fetch or create a patient profile."""
+    prof = db.query(PatientProfile).filter(PatientProfile.user_id == user_id).first()
+    if not prof:
+        prof = PatientProfile(
+            user_id=user_id,
+            date_of_birth=profile_data.get("dob"),
+            gender=profile_data.get("gender"),
+            blood_group=profile_data.get("blood"),
+            allergies=profile_data.get("allergies"),
+            chronic_conditions=profile_data.get("chronic"),
+            past_conditions=profile_data.get("past", []),
+            surgeries=profile_data.get("surgeries", []),
+            current_medications=profile_data.get("medications", []),
+            smoking_status=profile_data.get("smoking"),
+            alcohol_consumption=profile_data.get("alcohol"),
+            emergency_contact_name=profile_data.get("emergency_name"),
+            emergency_contact_phone=profile_data.get("emergency_phone"),
+            emergency_contact_relationship=profile_data.get("emergency_rel"),
+        )
+        db.add(prof)
+        db.flush()
+    else:
+        prof.date_of_birth = profile_data.get("dob", prof.date_of_birth)
+        prof.gender = profile_data.get("gender", prof.gender)
+        prof.blood_group = profile_data.get("blood", prof.blood_group)
+        prof.allergies = profile_data.get("allergies", prof.allergies)
+        prof.chronic_conditions = profile_data.get("chronic", prof.chronic_conditions)
+        prof.past_conditions = profile_data.get("past", prof.past_conditions)
+        prof.surgeries = profile_data.get("surgeries", prof.surgeries)
+        prof.current_medications = profile_data.get("medications", prof.current_medications)
+        prof.smoking_status = profile_data.get("smoking", prof.smoking_status)
+        prof.alcohol_consumption = profile_data.get("alcohol", prof.alcohol_consumption)
+        prof.emergency_contact_name = profile_data.get("emergency_name", prof.emergency_contact_name)
+        prof.emergency_contact_phone = profile_data.get("emergency_phone", prof.emergency_contact_phone)
+        prof.emergency_contact_relationship = profile_data.get("emergency_rel", prof.emergency_contact_relationship)
+        db.flush()
+    return prof
+
+
+def seed_database(db: Optional[Session] = None):
+    """Main seed function populating CareAI Healthcare SaaS platform with rich demo data."""
+    close_db_on_exit = False
+    if db is None:
+        db = SessionLocal()
+        close_db_on_exit = True
+
     try:
         print("[+] Seeding CareAI Healthcare SaaS platform with rich demo data...")
 
         # -------------------------------------------------------------
-        # 1. Platform Administrator
+        # 1. PRIMARY DEMO ACCOUNTS (5 Core Roles)
         # -------------------------------------------------------------
-        admin = db.query(User).filter(User.email == "pillu.212006@gmail.com").first()
-        if not admin:
-            # Check legacy admin and update or create
-            legacy_admin = db.query(User).filter(User.email == "admin@careai.com").first()
-            if legacy_admin:
-                legacy_admin.email = "pillu.212006@gmail.com"
-                legacy_admin.hashed_password = get_password_hash("Neha@6328")
-                admin = legacy_admin
-                db.flush()
-                print("  [OK] Admin updated: pillu.212006@gmail.com / Neha@6328")
-            else:
-                admin = User(
-                    email="pillu.212006@gmail.com",
-                    hashed_password=get_password_hash("Neha@6328"),
-                    full_name="Chief Medical Admin",
-                    role=UserRole.ADMIN,
-                    is_active=True,
-                    is_verified=True,
-                )
-                db.add(admin)
-                db.flush()
-                print("  [OK] Admin created: pillu.212006@gmail.com / Neha@6328")
-        else:
-            admin.hashed_password = get_password_hash("Neha@6328")
-            db.flush()
-            print("  [OK] Admin password refreshed: pillu.212006@gmail.com / Neha@6328")
+        print("\n--- 1. Seeding 5 Primary Demo Accounts ---")
+        # 1a. Platform Administrator
+        admin = upsert_user(
+            db=db,
+            email="pillu.212006@gmail.com",
+            password="Neha@6328",
+            full_name="Admin",
+            role=UserRole.ADMIN,
+        )
 
-        # -------------------------------------------------------------
-        # 1b. Lab Technician
-        # -------------------------------------------------------------
-        lab_tech = db.query(User).filter(User.email == "lab.tech@careai.com").first()
-        if not lab_tech:
-            lab_tech = User(
+        # 1b. Doctor: K. Meghana
+        doctor_meghana = upsert_user(
+            db=db,
+            email="kmeghana27@gmail.com",
+            password="Megha@612",
+            full_name="K. Meghana",
+            role=UserRole.DOCTOR,
+        )
+        meghana_prof = upsert_doctor_profile(
+            db=db,
+            user_id=doctor_meghana.id,
+            specialization="General Medicine",
+            license_number="MED-MEGH-2701",
+            experience_years=6,
+            bio="Senior consultant physician specializing in comprehensive diagnostic assessments, preventive health screenings, and integrated chronic care management.",
+            hospital_affiliation="CareAI Central Hospital",
+            consultation_fee=600.00,
+            approval_status=DoctorApprovalStatus.APPROVED,
+        )
+        sync_doctor_availabilities(
+            db=db,
+            doctor_id=meghana_prof.id,
+            schedules=[
+                {"day": 0, "start": time(9, 0), "end": time(14, 0), "duration": 30},
+                {"day": 1, "start": time(9, 0), "end": time(14, 0), "duration": 30},
+                {"day": 2, "start": time(9, 0), "end": time(14, 0), "duration": 30},
+                {"day": 3, "start": time(9, 0), "end": time(14, 0), "duration": 30},
+                {"day": 4, "start": time(9, 0), "end": time(14, 0), "duration": 30},
+            ],
+        )
+
+        # 1c. Patient: Tanmai
+        patient_tanmai = upsert_user(
+            db=db,
+            email="tanmai88@gmail.com",
+            password="tanmai88",
+            full_name="Tanmai",
+            role=UserRole.PATIENT,
+        )
+        tanmai_prof = upsert_patient_profile(
+            db=db,
+            user_id=patient_tanmai.id,
+            profile_data={
+                "dob": date(1996, 4, 18),
+                "gender": "Female",
+                "blood": "B+",
+                "allergies": [
+                    {"name": "Sulfa drugs", "type": "MEDICATION", "severity": "MODERATE", "reaction": "Skin rash & itching"},
+                ],
+                "chronic": ["Mild Bronchial Asthma"],
+                "past": ["Seasonal Allergies"],
+                "surgeries": [],
+                "medications": [
+                    {"name": "Levocetirizine", "dosage": "5mg", "frequency": "Once daily as needed", "instructions": "Take at bedtime"},
+                ],
+                "smoking": "NEVER",
+                "alcohol": "NON_DRINKER",
+                "emergency_name": "P. Sharma",
+                "emergency_phone": "+91 98765 43210",
+                "emergency_rel": "Guardian",
+            },
+        )
+
+        # 1d. Lab Technician: P. Vinay
+        lab_tech = upsert_user(
+            db=db,
+            email="vinaysimha27@gmail.com",
+            password="Vinay@736",
+            full_name="P. Vinay",
+            role=UserRole.LAB_TECHNICIAN,
+        )
+
+        # 1e. Pharmacy Staff: K. Pujita
+        pharmacy_staff = upsert_user(
+            db=db,
+            email="tirupujitha03@gmail.com",
+            password="tiru@333",
+            full_name="K. Pujita",
+            role=UserRole.PHARMACY_STAFF,
+        )
+
+        # Also preserve legacy system accounts if existing for backward compatibility
+        legacy_lab_tech = db.query(User).filter(User.email == "lab.tech@careai.com").first()
+        if not legacy_lab_tech:
+            upsert_user(
+                db=db,
                 email="lab.tech@careai.com",
-                hashed_password=get_password_hash("LabTechPass123!"),
+                password="LabTechPass123!",
                 full_name="Alex Rivera (Lead Lab Specialist)",
                 role=UserRole.LAB_TECHNICIAN,
-                is_active=True,
-                is_verified=True,
             )
-            db.add(lab_tech)
-            db.flush()
-            print("  [OK] Lab Technician created: lab.tech@careai.com / LabTechPass123!")
 
-        # -------------------------------------------------------------
-        # 1c. Pharmacy Staff
-        # -------------------------------------------------------------
-        pharmacy_staff = db.query(User).filter(User.email == "pharmacy.staff@careai.com").first()
-        if not pharmacy_staff:
-            pharmacy_staff = User(
+        legacy_pharmacy_staff = db.query(User).filter(User.email == "pharmacy.staff@careai.com").first()
+        if not legacy_pharmacy_staff:
+            upsert_user(
+                db=db,
                 email="pharmacy.staff@careai.com",
-                hashed_password=get_password_hash("PharmacyPass123!"),
+                password="PharmacyPass123!",
                 full_name="Elena Rostova (Chief Clinical Pharmacist)",
                 role=UserRole.PHARMACY_STAFF,
-                is_active=True,
-                is_verified=True,
             )
-            db.add(pharmacy_staff)
-            db.flush()
-            print("  [OK] Pharmacy Staff created: pharmacy.staff@careai.com / PharmacyPass123!")
 
         # -------------------------------------------------------------
-        # 2. Approved Doctors
+        # 2. DOCTOR DIRECTORY PROFILES
         # -------------------------------------------------------------
+        print("\n--- 2. Seeding Doctor Directory Profiles ---")
+
+        # 2a. DR. AYAN (Approved, Cardiology, Mon/Wed/Fri/Sun, ₹500)
+        user_ayan = upsert_user(
+            db=db,
+            email="dr.ayan@careai.com",
+            password="DoctorPass123!",
+            full_name="Ayan",
+            role=UserRole.DOCTOR,
+        )
+        ayan_prof = upsert_doctor_profile(
+            db=db,
+            user_id=user_ayan.id,
+            specialization="Cardiology",
+            license_number="MED-CARDIO-5001",
+            experience_years=5,
+            bio="Experienced cardiology specialist with an MBBS background from Delhi Medical College, advanced international postgraduate medical training, previous experience at a government hospital in Mumbai, and significant cardiac surgery experience.",
+            hospital_affiliation="Delhi Medical College & Associated Hospitals",
+            consultation_fee=500.00,
+            approval_status=DoctorApprovalStatus.APPROVED,
+        )
+        sync_doctor_availabilities(
+            db=db,
+            doctor_id=ayan_prof.id,
+            schedules=[
+                {"day": 0, "start": time(9, 0), "end": time(17, 0), "duration": 30},  # Monday
+                {"day": 2, "start": time(9, 0), "end": time(17, 0), "duration": 30},  # Wednesday
+                {"day": 4, "start": time(9, 0), "end": time(17, 0), "duration": 30},  # Friday
+                {"day": 6, "start": time(9, 0), "end": time(17, 0), "duration": 30},  # Sunday
+            ],
+        )
+        print("  [OK] Dr. Ayan profile & availability configured: APPROVED, Mon/Wed/Fri/Sun, Fee: Rs. 500")
+
+        # 2b. DR. NARESH TREHAN (Pending, Cardiovascular and Cardiothoracic Surgery, Thu, ₹1500)
+        user_trehan = upsert_user(
+            db=db,
+            email="dr.trehan@careai.com",
+            password="DoctorPass123!",
+            full_name="Naresh Trehan",
+            role=UserRole.DOCTOR,
+        )
+        trehan_prof = upsert_doctor_profile(
+            db=db,
+            user_id=user_trehan.id,
+            specialization="Cardiovascular and Cardiothoracic Surgery",
+            license_number="MED-CTS-2001",
+            experience_years=20,
+            bio="Senior cardiovascular and cardiothoracic surgeon profile for demonstration purposes.",
+            hospital_affiliation="Medanta Heart Institute",
+            consultation_fee=1500.00,
+            approval_status=DoctorApprovalStatus.PENDING,  # Kept PENDING for Admin verification demo
+        )
+        sync_doctor_availabilities(
+            db=db,
+            doctor_id=trehan_prof.id,
+            schedules=[
+                {"day": 3, "start": time(9, 0), "end": time(17, 0), "duration": 30},  # Thursday
+            ],
+        )
+        print("  [OK] Dr. Naresh Trehan profile & availability configured: PENDING, Thursday, Fee: Rs. 1500")
+
+        # 2c. DR. ANANYA SHARMA (Approved, Gynecology, Mon/Fri/Sun, ₹1000)
+        user_ananya = upsert_user(
+            db=db,
+            email="dr.ananya@careai.com",
+            password="DoctorPass123!",
+            full_name="Ananya Sharma",
+            role=UserRole.DOCTOR,
+        )
+        ananya_prof = upsert_doctor_profile(
+            db=db,
+            user_id=user_ananya.id,
+            specialization="Gynecology",
+            license_number="MED-GYN-1001",
+            experience_years=10,
+            bio="Experienced gynecologist specializing in women's reproductive health, menstruation-related conditions, fertility, hormonal health, PCOS, pregnancy care, and gynecological procedures.",
+            hospital_affiliation="Apollo Women's Health Institute",
+            consultation_fee=1000.00,
+            approval_status=DoctorApprovalStatus.APPROVED,
+        )
+        sync_doctor_availabilities(
+            db=db,
+            doctor_id=ananya_prof.id,
+            schedules=[
+                {"day": 0, "start": time(9, 0), "end": time(17, 0), "duration": 30},  # Monday
+                {"day": 4, "start": time(9, 0), "end": time(17, 0), "duration": 30},  # Friday
+                {"day": 6, "start": time(9, 0), "end": time(17, 0), "duration": 30},  # Sunday
+            ],
+        )
+        print("  [OK] Dr. Ananya Sharma profile & availability configured: APPROVED, Mon/Fri/Sun, Fee: Rs. 1000")
+
+        # -------------------------------------------------------------
+        # 3. PRESERVE EXISTING DEMO DOCTORS & PATIENTS (FOR WORKFLOW FIDELITY)
+        # -------------------------------------------------------------
+        print("\n--- 3. Preserving Connected Demo Doctors & Patients ---")
         doctors_data = [
             {
                 "email": "dr.sarah@careai.com",
@@ -150,85 +459,57 @@ def seed_database():
             },
         ]
 
-        doc_profiles = {}
+        doc_profiles = {
+            "dr.ayan@careai.com": ayan_prof,
+            "dr.trehan@careai.com": trehan_prof,
+            "dr.ananya@careai.com": ananya_prof,
+            "kmeghana27@gmail.com": meghana_prof,
+        }
+
         for d in doctors_data:
-            user = db.query(User).filter(User.email == d["email"]).first()
-            if not user:
-                user = User(
-                    email=d["email"],
-                    hashed_password=get_password_hash("DoctorPass123!"),
-                    full_name=d["name"],
-                    role=UserRole.DOCTOR,
-                    is_active=True,
-                    is_verified=True,
-                )
-                db.add(user)
-                db.flush()
-
-                prof = DoctorProfile(
-                    user_id=user.id,
-                    specialization=d["specialization"],
-                    license_number=d["license"],
-                    experience_years=d["experience"],
-                    bio=d["bio"],
-                    hospital_affiliation=d["hospital"],
-                    consultation_fee=d["fee"],
-                    approval_status=DoctorApprovalStatus.APPROVED,
-                )
-                db.add(prof)
-                db.flush()
-                doc_profiles[d["email"]] = prof
-
-                # Add weekly schedules
-                for s in d["schedules"]:
-                    avail = DoctorAvailability(
-                        doctor_id=prof.id,
-                        day_of_week=s["day"],
-                        start_time=s["start"],
-                        end_time=s["end"],
-                        slot_duration_minutes=s["duration"],
-                        is_active=True,
-                    )
-                    db.add(avail)
-
-                print(f"  [OK] Doctor created: {d['email']} / DoctorPass123! ({d['specialization']})")
-            else:
-                prof = db.query(DoctorProfile).filter(DoctorProfile.user_id == user.id).first()
-                doc_profiles[d["email"]] = prof
-
-        # -------------------------------------------------------------
-        # 2b. Pending Doctor Awaiting Admin Verification (For Live Demo)
-        # -------------------------------------------------------------
-        pending_doc_user = db.query(User).filter(User.email == "dr.watson@careai.com").first()
-        if not pending_doc_user:
-            pending_doc_user = User(
-                email="dr.watson@careai.com",
-                hashed_password=get_password_hash("DoctorPass123!"),
-                full_name="John Watson, MD",
+            user = upsert_user(
+                db=db,
+                email=d["email"],
+                password="DoctorPass123!",
+                full_name=d["name"],
                 role=UserRole.DOCTOR,
-                is_active=True,
-                is_verified=True,
             )
-            db.add(pending_doc_user)
-            db.flush()
-
-            watson_prof = DoctorProfile(
-                user_id=pending_doc_user.id,
-                specialization="Pulmonology",
-                license_number="MED-PULM-7712",
-                experience_years=14,
-                bio="Consultant pulmonologist specializing in chronic obstructive pulmonary disease, asthma phenotyping, and interventional bronchoscopy.",
-                hospital_affiliation="Royal Chest & Respiratory Hospital",
-                consultation_fee=160.00,
-                approval_status=DoctorApprovalStatus.PENDING,
+            prof = upsert_doctor_profile(
+                db=db,
+                user_id=user.id,
+                specialization=d["specialization"],
+                license_number=d["license"],
+                experience_years=d["experience"],
+                bio=d["bio"],
+                hospital_affiliation=d["hospital"],
+                consultation_fee=d["fee"],
+                approval_status=DoctorApprovalStatus.APPROVED,
             )
-            db.add(watson_prof)
-            db.flush()
-            print("  [OK] Pending Doctor Application created: dr.watson@careai.com / DoctorPass123! (Pending Admin Approval)")
+            sync_doctor_availabilities(db=db, doctor_id=prof.id, schedules=d["schedules"])
+            doc_profiles[d["email"]] = prof
 
-        # -------------------------------------------------------------
-        # 3. Verified Patients
-        # -------------------------------------------------------------
+        # Legacy pending doctor: Dr. John Watson
+        user_watson = upsert_user(
+            db=db,
+            email="dr.watson@careai.com",
+            password="DoctorPass123!",
+            full_name="John Watson, MD",
+            role=UserRole.DOCTOR,
+        )
+        watson_prof = upsert_doctor_profile(
+            db=db,
+            user_id=user_watson.id,
+            specialization="Pulmonology",
+            license_number="MED-PULM-7712",
+            experience_years=14,
+            bio="Consultant pulmonologist specializing in chronic obstructive pulmonary disease, asthma phenotyping, and interventional bronchoscopy.",
+            hospital_affiliation="Royal Chest & Respiratory Hospital",
+            consultation_fee=160.00,
+            approval_status=DoctorApprovalStatus.PENDING,
+        )
+        doc_profiles["dr.watson@careai.com"] = watson_prof
+
+        # Patients
         patients_data = [
             {
                 "email": "patient.john@example.com",
@@ -242,7 +523,7 @@ def seed_database():
                 ],
                 "chronic": ["Essential Hypertension", "Mild Hyperlipidemia"],
                 "medications": [
-                    {"name": "Lisinopril", "dosage": "10mg", "frequency": "Once daily in the morning", "instructions": "Take with water"},
+                    {"name": "Lisinopril", "dosage": "20mg", "frequency": "Once daily in the morning", "instructions": "Take with water"},
                     {"name": "Atorvastatin", "dosage": "20mg", "frequency": "Once daily at bedtime", "instructions": "Avoid grapefruit"},
                 ],
                 "smoking": "NEVER",
@@ -273,48 +554,24 @@ def seed_database():
             },
         ]
 
-        pat_profiles = {}
+        pat_profiles = {
+            "tanmai88@gmail.com": tanmai_prof,
+        }
         for p in patients_data:
-            user = db.query(User).filter(User.email == p["email"]).first()
-            if not user:
-                user = User(
-                    email=p["email"],
-                    hashed_password=get_password_hash("PatientPass123!"),
-                    full_name=p["name"],
-                    role=UserRole.PATIENT,
-                    is_active=True,
-                    is_verified=True,
-                )
-                db.add(user)
-                db.flush()
-
-                prof = PatientProfile(
-                    user_id=user.id,
-                    date_of_birth=p["dob"],
-                    gender=p["gender"],
-                    blood_group=p["blood"],
-                    allergies=p["allergies"],
-                    chronic_conditions=p["chronic"],
-                    past_conditions=["Seasonal Bronchitis (2022)"],
-                    surgeries=["Appendectomy (2015)"],
-                    current_medications=p["medications"],
-                    smoking_status=p["smoking"],
-                    alcohol_consumption=p["alcohol"],
-                    emergency_contact_name=p["emergency_name"],
-                    emergency_contact_phone=p["emergency_phone"],
-                    emergency_contact_relationship=p["emergency_rel"],
-                )
-                db.add(prof)
-                db.flush()
-                pat_profiles[p["email"]] = prof
-                print(f"  [OK] Patient created: {p['email']} / PatientPass123!")
-            else:
-                prof = db.query(PatientProfile).filter(PatientProfile.user_id == user.id).first()
-                pat_profiles[p["email"]] = prof
+            user = upsert_user(
+                db=db,
+                email=p["email"],
+                password="PatientPass123!",
+                full_name=p["name"],
+                role=UserRole.PATIENT,
+            )
+            prof = upsert_patient_profile(db=db, user_id=user.id, profile_data=p)
+            pat_profiles[p["email"]] = prof
 
         # -------------------------------------------------------------
-        # 4. Standardized Lab Test Catalog (8 tests)
+        # 4. STANDARDIZED LAB TEST CATALOG (8 Tests)
         # -------------------------------------------------------------
+        print("\n--- 4. Seeding Standardized Lab Test Catalog ---")
         catalog_tests = [
             {
                 "name": "Complete Blood Count (CBC) with Differential",
@@ -429,13 +686,35 @@ def seed_database():
         print("  [OK] Lab Test Catalog populated (8 standardized tests).")
 
         # -------------------------------------------------------------
-        # 5. Completed Consultations & Prescriptions in Distinct Stages
+        # 5. CONSULTATIONS & PRESCRIPTIONS IN DISTINCT WORKFLOW STAGES
         # -------------------------------------------------------------
+        print("\n--- 5. Seeding Connected Consultations & Prescriptions ---")
         sarah_prof = doc_profiles.get("dr.sarah@careai.com")
         marcus_prof = doc_profiles.get("dr.marcus@careai.com")
         emily_prof = doc_profiles.get("dr.emily@careai.com")
         john_prof = pat_profiles.get("patient.john@example.com")
         emma_prof = pat_profiles.get("patient.emma@example.com")
+
+        # Primary demo patient appointment with Dr. Ayan
+        if ayan_prof and tanmai_prof:
+            appt_tanmai = db.query(Appointment).filter(
+                Appointment.doctor_id == ayan_prof.id,
+                Appointment.patient_id == tanmai_prof.id,
+            ).first()
+            if not appt_tanmai:
+                future_time_t = datetime.now(timezone.utc) + timedelta(days=3, hours=2)
+                appt_tanmai = Appointment(
+                    doctor_id=ayan_prof.id,
+                    patient_id=tanmai_prof.id,
+                    scheduled_start=future_time_t,
+                    scheduled_end=future_time_t + timedelta(minutes=30),
+                    status=AppointmentStatus.CONFIRMED,
+                    reason="Comprehensive cardiology evaluation and preventative consultation",
+                    patient_notes="Routine heart wellness checkup.",
+                )
+                db.add(appt_tanmai)
+                db.flush()
+                print("  [OK] Confirmed Appointment created for Patient Tanmai with Dr. Ayan.")
 
         if sarah_prof and john_prof:
             # Appointment 1: Past Completed Consultation
@@ -696,7 +975,7 @@ def seed_database():
                     clinical_notes="Complete full 5-day antibiotic course.",
                     valid_until=date.today() + timedelta(days=14),
                     status=PrescriptionStatus.DISPENSED,
-                    pharmacy_notes="Dispensed by Pharmacist Elena Rostova. Verified no penicillin/aspirin allergy conflicts.",
+                    pharmacy_notes="Dispensed by Pharmacist K. Pujita. Verified no penicillin/aspirin allergy conflicts.",
                     dispensed_by_user_id=pharmacy_staff.id if pharmacy_staff else None,
                     dispensed_at=datetime.now(timezone.utc) - timedelta(days=2),
                 )
@@ -716,8 +995,9 @@ def seed_database():
                 print("  [OK] Prescription #4 created (DISPENSED stage).")
 
         # -------------------------------------------------------------
-        # 6. Sample Medical Documents (With Physical Files for Download)
+        # 6. SAMPLE MEDICAL DOCUMENTS (PHYSICAL FILES FOR DOWNLOAD)
         # -------------------------------------------------------------
+        print("\n--- 6. Seeding Patient Medical Documents & AI Analysis ---")
         if john_prof:
             doc1 = db.query(MedicalDocument).filter(
                 MedicalDocument.patient_id == john_prof.id,
@@ -764,11 +1044,12 @@ def seed_database():
                 )
                 db.add(analysis1)
                 db.flush()
-                print("  [OK] Patient medical document and analysis created.")
+                print("  [OK] Patient medical document and AI document analysis created.")
 
         # -------------------------------------------------------------
-        # 7. Active Diagnostic Lab Orders in Multiple Stages
+        # 7. ACTIVE DIAGNOSTIC LAB ORDERS IN MULTIPLE STAGES
         # -------------------------------------------------------------
+        print("\n--- 7. Seeding Diagnostic Lab Orders ---")
         if sarah_prof and john_prof and lab_tests_map.get("CBC-001") and lab_tests_map.get("TROP-007"):
             # Lab Order 1: STAT Order in SAMPLE_PENDING
             order1 = db.query(LabOrder).filter(
@@ -837,7 +1118,7 @@ def seed_database():
                 db.add(item_lipid)
                 db.flush()
 
-                # Add sample collection
+                # Add sample collection by primary lab technician P. Vinay
                 db.add(LabSample(
                     lab_order_id=order2.id,
                     technician_id=lab_tech.id if lab_tech else 1,
@@ -850,7 +1131,7 @@ def seed_database():
                     lab_order_id=order2.id,
                     action="SAMPLE_COLLECTED",
                     performed_by_user_id=lab_tech.id if lab_tech else 1,
-                    details="Specimen collected and verified by Lab Tech Alex Rivera",
+                    details="Specimen collected and verified by Lab Tech P. Vinay",
                 ))
                 print("  [OK] Lab Order #2 created (ROUTINE priority, IN_PROGRESS stage).")
 
@@ -912,15 +1193,63 @@ def seed_database():
                     lab_order_id=order3.id,
                     action="RESULTS_RELEASED",
                     performed_by_user_id=lab_tech.id if lab_tech else 1,
-                    details="Diagnostic results verified and released to patient health record.",
+                    details="Diagnostic results verified and released to patient health record by P. Vinay.",
                 ))
                 print("  [OK] Lab Order #3 created (RELEASED to patient portal stage).")
 
         # -------------------------------------------------------------
-        # 8. In-App Notifications for All Roles
+        # 8. IN-APP NOTIFICATIONS ACROSS ALL 5 ROLES
         # -------------------------------------------------------------
+        print("\n--- 8. Seeding Role Notifications ---")
         demo_notifications = [
-            # Patient John Doe
+            # Primary Patient: Tanmai
+            {
+                "user_email": "tanmai88@gmail.com",
+                "title": "Welcome to CareAI Health Portal",
+                "message": "Your patient health profile is active. You can browse certified doctors and schedule consultations.",
+                "type": NotificationType.SYSTEM,
+                "priority": NotificationPriority.NORMAL,
+            },
+            {
+                "user_email": "tanmai88@gmail.com",
+                "title": "Upcoming Consultation Confirmed",
+                "message": "Your consultation with Dr. Ayan has been confirmed. Please check your appointments schedule.",
+                "type": NotificationType.APPOINTMENT,
+                "priority": NotificationPriority.HIGH,
+            },
+            # Primary Doctor: K. Meghana
+            {
+                "user_email": "kmeghana27@gmail.com",
+                "title": "Welcome to CareAI Clinical Suite",
+                "message": "Your doctor credentials and weekly availability schedule are fully approved.",
+                "type": NotificationType.SYSTEM,
+                "priority": NotificationPriority.NORMAL,
+            },
+            # Primary Admin: Admin
+            {
+                "user_email": "pillu.212006@gmail.com",
+                "title": "Doctor Application Pending Review: Dr. Naresh Trehan",
+                "message": "Dr. Naresh Trehan (Cardiovascular and Cardiothoracic Surgery) has submitted credentials awaiting verification.",
+                "type": NotificationType.DOCTOR_APPROVAL,
+                "priority": NotificationPriority.HIGH,
+            },
+            # Primary Lab Technician: P. Vinay
+            {
+                "user_email": "vinaysimha27@gmail.com",
+                "title": "Diagnostic Requisition Queue Ready",
+                "message": "Diagnostic laboratory bench ready. STAT specimen pending for Johnathan Doe (Troponin I + CBC).",
+                "type": NotificationType.SYSTEM,
+                "priority": NotificationPriority.HIGH,
+            },
+            # Primary Pharmacy Staff: K. Pujita
+            {
+                "user_email": "tirupujitha03@gmail.com",
+                "title": "Prescription Fulfillment Ready",
+                "message": "Digital prescription for Lisinopril 20mg + Hydrochlorothiazide 12.5mg received in the fulfillment queue.",
+                "type": NotificationType.PRESCRIPTION,
+                "priority": NotificationPriority.NORMAL,
+            },
+            # Connected Patient: John Doe
             {
                 "user_email": "patient.john@example.com",
                 "title": "Prescription Ready for Pickup",
@@ -935,37 +1264,13 @@ def seed_database():
                 "type": NotificationType.SYSTEM,
                 "priority": NotificationPriority.NORMAL,
             },
-            # Doctor Sarah Jenkins
+            # Connected Doctor: Dr. Sarah Jenkins
             {
                 "user_email": "dr.sarah@careai.com",
                 "title": "STAT Lab Requisition Received",
                 "message": "STAT Lab Order #1 for Patient Johnathan Doe has been placed in the diagnostic queue.",
                 "type": NotificationType.SYSTEM,
                 "priority": NotificationPriority.HIGH,
-            },
-            # Admin
-            {
-                "user_email": "pillu.212006@gmail.com",
-                "title": "Doctor Application Pending Review",
-                "message": "Dr. John Watson (Pulmonology) has submitted medical credentials awaiting verification.",
-                "type": NotificationType.DOCTOR_APPROVAL,
-                "priority": NotificationPriority.HIGH,
-            },
-            # Lab Tech Alex Rivera
-            {
-                "user_email": "lab.tech@careai.com",
-                "title": "New STAT Diagnostic Order in Queue",
-                "message": "STAT specimen collection pending for Johnathan Doe (Troponin I + CBC).",
-                "type": NotificationType.SYSTEM,
-                "priority": NotificationPriority.HIGH,
-            },
-            # Pharmacy Staff Elena Rostova
-            {
-                "user_email": "pharmacy.staff@careai.com",
-                "title": "New Digital Prescription Issued",
-                "message": "New prescription for Lisinopril 20mg + Hydrochlorothiazide 12.5mg received in the fulfillment queue.",
-                "type": NotificationType.PRESCRIPTION,
-                "priority": NotificationPriority.NORMAL,
             },
         ]
 
@@ -986,17 +1291,17 @@ def seed_database():
                         is_read=False,
                     ))
         db.flush()
-        print("  [OK] In-app notifications seeded across all 5 roles.")
-
+        print("  [OK] In-app notifications seeded across all roles.")
 
         db.commit()
-        print("\n[SUCCESS] CareAI demo data seeded successfully with 100% role fidelity!")
+        print("\n[SUCCESS] CareAI demo data seeded successfully with 100% role fidelity and idempotency!")
     except Exception as e:
         db.rollback()
-        print(f"[ERROR] Error seeding database: {e}", file=sys.stderr)
+        print(f"\n[ERROR] Error seeding database: {e}", file=sys.stderr)
         raise e
     finally:
-        db.close()
+        if close_db_on_exit:
+            db.close()
 
 
 if __name__ == "__main__":
