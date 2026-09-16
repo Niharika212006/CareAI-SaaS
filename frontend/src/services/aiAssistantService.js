@@ -43,6 +43,22 @@ export const aiAssistantService = {
   async deleteConversation(conversationId) {
     return await api.delete(`/ai-assistant/conversations/${conversationId}`);
   },
+
+  /**
+   * Retrieve AI provider and operational engine status.
+   */
+  async getConfig() {
+    return await api.get('/ai-assistant/config');
+  },
+
+  /**
+   * Set or update the Gemini API key at runtime.
+   * @param {string} apiKey
+   */
+  async updateConfig(apiKey) {
+    return await api.post('/ai-assistant/config', { api_key: apiKey });
+  },
 };
 
 export default aiAssistantService;
+

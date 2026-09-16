@@ -6,11 +6,14 @@ from sqlalchemy.orm import Session
 from app.database.session import get_db
 from app.dependencies.auth import get_current_active_user
 from app.models.user import User
+from app.ai.client import ai_client
 from app.schemas.ai_assistant import (
     AIChatRequest,
     AIChatResponse,
     AIConversationRead,
     AIConversationSummary,
+    AIConfigRead,
+    AIConfigUpdate,
 )
 from app.services.ai_assistant_service import ai_assistant_service
 
@@ -106,3 +109,56 @@ def delete_conversation(
         "message": f"Conversation {conversation_id} deleted successfully.",
         "id": conversation_id,
     }
+
+
+@router.get(
+    "/config",
+    response_model=AIConfigRead,
+    summary="Retrieve current AI provider and engine status",
+)
+def get_ai_config(
+    current_user: User = Depends(get_current_active_user),
+) -> AIConfigRead:
+    """Retrieve operational status and active engine (Gemini vs Clinical Knowledge Engine)."""
+    status_data = ai_client.get_status()
+    return AIConfigRead(**status_data)
+
+
+@router.post(
+    "/config",
+    response_model=Dict[str, Any],
+    summary="Configure or update Gemini API key at runtime",
+)
+def update_ai_config(
+    payload: AIConfigUpdate,
+    current_user: User = Depends(get_current_active_user),
+) -> Dict[str, Any]:
+    """
+    Set or clear Gemini API key dynamically.
+    Enables live Google Gemini foundation model processing.
+    """
+    key = payload.api_key.strip()
+    ai_client.set_gemini_key(key)
+
+    # Try updating backend/.env file so key persists across server restarts
+    try:
+        from pathlib import Path
+        import re
+        env_path = Path(__file__).resolve().parent.parent.parent.parent / ".env"
+        if env_path.exists():
+            content = env_path.read_text(encoding="utf-8")
+            if "GEMINI_API_KEY=" in content:
+                new_content = re.sub(r'GEMINI_API_KEY="[^"]*"', f'GEMINI_API_KEY="{key}"', content)
+                if new_content == content:
+                    new_content = re.sub(r"GEMINI_API_KEY=.*", f'GEMINI_API_KEY="{key}"', content)
+                env_path.write_text(new_content, encoding="utf-8")
+    except Exception:
+        pass
+
+    status_data = ai_client.get_status()
+    return {
+        "status": "success",
+        "message": "Gemini API key updated successfully." if key else "Reset to CareAI Clinical Intelligence Engine.",
+        "config": status_data,
+    }
+

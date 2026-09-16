@@ -5,6 +5,8 @@ import json
 import logging
 from typing import Optional, Dict, Any, List
 from app.core.config import settings
+from app.models.user import UserRole
+from app.ai.clinical_engine import clinical_engine
 
 logger = logging.getLogger("healthcare.ai.client")
 
@@ -24,8 +26,15 @@ class AIClient:
 
     def __init__(self) -> None:
         self.provider = (settings.AI_PROVIDER or "gemini").lower()
+        self._runtime_gemini_key: Optional[str] = None
+
+    def set_gemini_key(self, key: str) -> None:
+        """Dynamically set or update Gemini API key at runtime."""
+        self._runtime_gemini_key = key.strip() if key else None
 
     def _get_gemini_key(self) -> str:
+        if self._runtime_gemini_key:
+            return self._runtime_gemini_key
         key = (
             settings.GEMINI_API_KEY
             or os.getenv("GEMINI_API_KEY")
@@ -67,6 +76,18 @@ class AIClient:
             return bool(self._get_openai_key())
         return False
 
+    def get_status(self) -> Dict[str, Any]:
+        """Return operational status and metadata of the AI subsystem."""
+        has_gemini = bool(self._get_gemini_key())
+        active_engine = f"Google Gemini ({self.model_name})" if has_gemini else "CareAI Clinical Intelligence Engine"
+        return {
+            "provider": self.provider,
+            "model_name": self.model_name,
+            "has_live_credentials": has_gemini,
+            "active_engine": active_engine,
+            "is_live_ai": has_gemini,
+        }
+
     def generate_completion(
         self,
         system_prompt: str,
@@ -97,40 +118,60 @@ class AIClient:
         return self._generate_clinical_engine_response(system_prompt, user_prompt, response_mime_type)
 
     def _call_gemini(self, system_prompt: str, user_prompt: str, response_mime_type: str) -> str:
-        """Execute real API call using the official Google GenAI SDK."""
+        """Execute real API call using the official Google GenAI SDK with multi-model fallback."""
         key = self._get_gemini_key()
-        model = self._get_model_name()
-        try:
-            from google import genai
-            from google.genai import types
+        preferred_model = self._get_model_name()
 
-            client = genai.Client(api_key=key)
-            
-            config = types.GenerateContentConfig(
-                system_instruction=system_prompt,
-                response_mime_type=response_mime_type,
-                temperature=0.1,
-                automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
-            )
+        # Candidate model hierarchy to gracefully handle region/version availability
+        candidate_models = [preferred_model]
+        for fallback in ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.5-flash"]:
+            if fallback not in candidate_models:
+                candidate_models.append(fallback)
 
-            response = client.models.generate_content(
-                model=model,
-                contents=user_prompt,
-                config=config,
-            )
+        last_error = None
+        for model in candidate_models:
+            try:
+                from google import genai
+                from google.genai import types
 
-            if not response or not response.text:
-                raise AIInvalidResponseError("Empty response returned by Gemini model.")
+                client = genai.Client(api_key=key)
 
-            return response.text.strip()
+                config = types.GenerateContentConfig(
+                    system_instruction=system_prompt,
+                    response_mime_type=response_mime_type,
+                    temperature=0.2,
+                    automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
+                )
 
-        except AIInvalidResponseError:
-            raise
-        except Exception as err:
-            logger.error(f"Gemini API execution failure on model '{model}': {err}")
-            raise AIProviderUnavailableError(
-                f"Gemini AI provider is currently unreachable or encountered an error on model '{model}'."
-            ) from err
+                response = client.models.generate_content(
+                    model=model,
+                    contents=user_prompt,
+                    config=config,
+                )
+
+                if not response or not response.text:
+                    raise AIInvalidResponseError(f"Empty response returned by Gemini model '{model}'.")
+
+                return response.text.strip()
+
+            except AIInvalidResponseError:
+                raise
+            except Exception as err:
+                last_error = err
+                err_str = str(err).lower()
+                # If model is not found or unsupported, attempt next candidate
+                if "404" in err_str or "not found" in err_str or "unsupported" in err_str:
+                    logger.warning(f"Model '{model}' unavailable, trying next candidate: {err}")
+                    continue
+                else:
+                    logger.error(f"Gemini API execution failure on model '{model}': {err}")
+                    raise AIProviderUnavailableError(
+                        f"Gemini AI provider encountered an error on model '{model}': {err}"
+                    ) from err
+
+        raise AIProviderUnavailableError(
+            f"All candidate Gemini models failed. Last error: {last_error}"
+        ) from last_error
 
     def _call_openai(self, system_prompt: str, user_prompt: str, response_mime_type: str) -> str:
         """Execute API call to OpenAI provider."""
@@ -242,152 +283,15 @@ class AIClient:
         return json.dumps(data)
 
     def _generate_text_assistant_response(self, user_prompt: str) -> str:
-        """Generate comprehensive, role-aware clinical responses in clean markdown."""
-        prompt_lower = user_prompt.lower()
-
-        # Extract User Role & Query
+        """Generate comprehensive, role-aware clinical responses using CareAI Clinical Intelligence Engine."""
         role_match = re.search(r"Active User Role:\s*(\w+)", user_prompt)
-        role = role_match.group(1).upper() if role_match else "PATIENT"
+        role_str = role_match.group(1).upper() if role_match else "PATIENT"
+        try:
+            role = UserRole(role_str)
+        except Exception:
+            role = UserRole.PATIENT
 
-        query_match = re.search(r"\[User\]:\s*(.*)", user_prompt, re.DOTALL)
-        query = query_match.group(1).strip() if query_match else user_prompt
-
-        # -------------------------------------------------------------
-        # 1. Electrolyte Testing & Methodology (Exact User Query)
-        # -------------------------------------------------------------
-        if "electrolyte" in prompt_lower or "potassium" in prompt_lower or "sodium" in prompt_lower or "chloride" in prompt_lower:
-            return (
-                "### **Serum Electrolyte Panel: Analytical Methodology & Reference Intervals**\n\n"
-                "The **Serum Electrolyte Panel** evaluates fluid balance, renal filtration, acid-base equilibrium, and neuromuscular electrical conduction.\n\n"
-                "#### **1. Analytical Testing Methodology**\n"
-                "- **Primary Technology**: **Ion-Selective Electrode (ISE) Potentiometry**.\n"
-                "  - **Direct ISE**: Measures ion activity directly in whole blood/undiluted plasma (standard on blood gas analyzers and point-of-care instruments). Free from indirect electrolyte exclusion effects caused by severe hyperlipidemia or hyperproteinemia.\n"
-                "  - **Indirect ISE**: Dilutes sample in electrolyte buffer prior to electrode contact (standard on high-throughput automated clinical biochemistry analyzers).\n"
-                "- **Bicarbonate / CO₂ Methodology**: Enzymatic phosphoenolpyruvate carboxylase (PEPC) photometric assay or acid-displacement ISE.\n\n"
-                "#### **2. Standard Reference Intervals**\n\n"
-                "| Analyte | Conventional Unit | SI Unit | Reference Interval | Critical Panic Limits |\n"
-                "| :--- | :--- | :--- | :--- | :--- |\n"
-                "| **Sodium ($Na^+$)** | $mEq/L$ | $mmol/L$ | **135 – 145** | $< 120$ or $> 160$ |\n"
-                "| **Potassium ($K^+$)** | $mEq/L$ | $mmol/L$ | **3.5 – 5.0** | $< 2.8$ or $> 6.0$ |\n"
-                "| **Chloride ($Cl^-$)** | $mEq/L$ | $mmol/L$ | **96 – 106** | $< 75$ or $> 125$ |\n"
-                "| **Bicarbonate ($CO_2 / HCO_3^-$)** | $mEq/L$ | $mmol/L$ | **23 – 29** | $< 10$ or $> 40$ |\n"
-                "| **Anion Gap** | $mEq/L$ | $mmol/L$ | **8 – 16** | $> 20$ (High Anion Gap Acidosis) |\n\n"
-                "#### **3. Pre-Analytical Specimen Quality Guidelines**\n"
-                "- **Tube Type**: Gold-top Serum Separator Tube (SST) with clot activator or Light Green-top Lithium Heparin plasma separator.\n"
-                "- **Hemolysis Prevention**: Red Blood Cells contain ~150 mmol/L $K^+$ (30× higher than serum). Even slight hemolysis (Grade 1+) falsely elevates potassium (pseudohyperkalemia), requiring sample recollection.\n"
-                "- **Processing Window**: Centrifuge within 2 hours of phlebotomy to prevent potassium leakage from erythrocytes.\n\n"
-                "*Disclaimer: CareAI provides informational laboratory reference guidance and does not replace institutional clinical pathology SOPs.*"
-            )
-
-        # -------------------------------------------------------------
-        # 2. Complete Blood Count (CBC)
-        # -------------------------------------------------------------
-        if "cbc" in prompt_lower or "complete blood count" in prompt_lower or "white blood cell" in prompt_lower or "hemoglobin" in prompt_lower:
-            return (
-                "### **Complete Blood Count (CBC) with Differential Overview**\n\n"
-                "#### **1. Methodology**\n"
-                "- **Automated Electrical Impedance (Coulter Principle)**: Direct sizing and cell enumeration of RBCs, Platelets, and WBCs.\n"
-                "- **Laser Flow Cytometry & Hydrodynamic Focusing**: Multi-angle polarized scatter separation of 5-part WBC differential (Neutrophils, Lymphocytes, Monocytes, Eosinophils, Basophils).\n"
-                "- **SLS-Hemoglobin Method**: Cyanide-free spectrophotometric absorbance reading at 555 nm.\n\n"
-                "#### **2. Reference Intervals**\n"
-                "- **White Blood Cells (WBC)**: `4.5 – 11.0 x10^3/uL` (Critical: `< 2.0` or `> 30.0`)\n"
-                "- **Hemoglobin (Hgb)**: Male: `13.8 – 17.2 g/dL`, Female: `12.1 – 15.1 g/dL` (Critical: `< 7.0`)\n"
-                "- **Hematocrit (Hct)**: Male: `40.7 – 50.3%`, Female: `36.1 – 44.3%`\n"
-                "- **Platelets (PLT)**: `150 – 450 x10^3/uL` (Critical: `< 50` or `> 1000`)\n\n"
-                "#### **3. Specimen Integrity**\n"
-                "- **Lavender-top $K_2$EDTA tube**. Invert gently 8–10 times. Inspect for microclots which falsely lower platelet counts."
-            )
-
-        # -------------------------------------------------------------
-        # 3. Comprehensive Metabolic Panel (CMP-14)
-        # -------------------------------------------------------------
-        if "cmp" in prompt_lower or "metabolic panel" in prompt_lower:
-            return (
-                "### **Comprehensive Metabolic Panel (CMP-14) Clinical Summary**\n\n"
-                "#### **Key Biomarker Categories & Reference Ranges**\n"
-                "1. **Electrolytes & Acid-Base**: $Na^+$ (135–145 mmol/L), $K^+$ (3.5–5.0 mmol/L), $Cl^-$ (96–106 mmol/L), $CO_2$ (23–29 mmol/L).\n"
-                "2. **Renal Function**: BUN (7–20 mg/dL), Serum Creatinine (0.7–1.3 mg/dL), eGFR (> 60 mL/min/1.73m²).\n"
-                "3. **Hepatic Biomarkers**: ALT (7–56 U/L), AST (10–40 U/L), ALP (44–147 U/L), Total Bilirubin (0.2–1.2 mg/dL), Albumin (3.5–5.0 g/dL), Total Protein (6.3–8.2 g/dL).\n"
-                "4. **Carbohydrate Metabolism & Calcium**: Fasting Glucose (70–99 mg/dL), Total Calcium (8.6–10.2 mg/dL).\n\n"
-                "**Specimen Requirement**: Fasting 8–12 hours prior to collection. Serum SST (gold) or Lithium Heparin (green)."
-            )
-
-        # -------------------------------------------------------------
-        # 4. Cardiac Troponin (hs-cTnI)
-        # -------------------------------------------------------------
-        if "troponin" in prompt_lower or "cardiac biomarker" in prompt_lower or "chest pain" in prompt_lower:
-            return (
-                "### **High-Sensitivity Cardiac Troponin I (hs-cTnI)**\n\n"
-                "#### **Clinical Role & Methodology**\n"
-                "- **Methodology**: Two-step Chemiluminescent Microparticle Immunoassay (CMIA) detecting cardiac troponin I sub-units with picogram-level analytical sensitivity.\n"
-                "- **99th Percentile Upper Reference Limit (URL)**: `< 0.04 ng/mL` (or `< 14 ng/L` hs-cTnI).\n"
-                "- **STAT Turnaround Protocol**: Rapid draw, prioritize immediate centrifugation, and release verified analytical result within **30–60 minutes**.\n"
-                "- **Dynamic Delta**: Serial measurements at 0h, 1h/2h, and 3h evaluate rising/falling kinetic deltas indicative of acute myocardial infarction."
-            )
-
-        # -------------------------------------------------------------
-        # 5. Drug Interactions / Pharmacology (Doctor / Pharmacy)
-        # -------------------------------------------------------------
-        if "interaction" in prompt_lower or "lisinopril" in prompt_lower or "atorvastatin" in prompt_lower or "prescription" in prompt_lower or "drug" in prompt_lower:
-            return (
-                "### **Clinical Pharmacology & Drug Safety Evaluation**\n\n"
-                "#### **Key Interaction Mechanisms in CareAI Formularies**\n"
-                "1. **ACE Inhibitor (Lisinopril) + Thiazide Diuretic (Hydrochlorothiazide)**:\n"
-                "   - *Mechanism*: Synergistic blood pressure reduction. Lisinopril blunts thiazide-induced hypokalemia, while HCTZ augments renin-angiotensin-aldosterone blockade.\n"
-                "   - *Monitoring*: Serum creatinine, BUN, and serum potassium within 2–4 weeks of initiation.\n"
-                "2. **Statin (Atorvastatin) Safety Profile**:\n"
-                "   - *Mechanism*: HMG-CoA reductase inhibition. Take once daily at bedtime. Avoid concurrent strong CYP3A4 inhibitors (clarithromycin, itraconazole, large grapefruit quantities).\n"
-                "   - *Advisory*: Monitor baseline liver transaminases and report unexplained muscle pain or weakness.\n"
-                "3. **NSAIDs + Antihypertensives**:\n"
-                "   - *Caution*: NSAIDs inhibit renal prostaglandins, reducing antihypertensive efficacy and increasing risk of acute kidney injury."
-            )
-
-        # -------------------------------------------------------------
-        # 6. Role-Specific Fallbacks
-        # -------------------------------------------------------------
-        if role == "LAB_TECHNICIAN":
-            return (
-                f"### **CareAI Laboratory Specialist Guidance**\n\n"
-                f"Regarding your query on **\"{query}\"**:\n\n"
-                "- **Diagnostic Workflow**: Automated testing adheres to CLIA/CAP standard operating procedures.\n"
-                "- **Quality Control (QC)**: Ensure 2-level daily QC runs within 2 SD Levey-Jennings limits before analyzing patient batches.\n"
-                "- **Specimen Criteria**: Check tube fill volume, verify patient barcode matching, and evaluate specimen condition (acceptable, hemolyzed, clotted, icteric).\n"
-                "- **Critical Alerts**: Results breaching panic intervals trigger immediate automated notification to the ordering physician."
-            )
-        elif role == "PHARMACY_STAFF":
-            return (
-                f"### **CareAI Clinical Pharmacist Guidance**\n\n"
-                f"Regarding your dispensary review on **\"{query}\"**:\n\n"
-                "- **Dispensary Verification**: Validate patient allergy profile, cross-reference active chronic conditions, and verify dosage calculations.\n"
-                "- **Safety Alerts**: Multi-vector AI interaction checks evaluate Drug-Drug, Drug-Food, and Drug-Allergy contraindications prior to status transition.\n"
-                "- **Dispensing Workflow**: Once verified, transition status to `READY` for patient pickup or `DISPENSED` upon patient presentation."
-            )
-        elif role == "DOCTOR":
-            return (
-                f"### **CareAI Clinical Decision Support**\n\n"
-                f"Regarding your clinical inquiry on **\"{query}\"**:\n\n"
-                "- **Diagnostic Assessment**: Cross-reference patient medical history, current active prescriptions, and recent diagnostic lab reports.\n"
-                "- **Prescription Safety**: When issuing digital prescriptions, CareAI evaluates real-time drug interaction vectors and allergy conflicts.\n"
-                "- **Laboratory Requisitions**: STAT and routine diagnostic orders route immediately to the laboratory work queue."
-            )
-        elif role == "ADMIN":
-            return (
-                f"### **CareAI System Governance & Compliance**\n\n"
-                f"Regarding your administrative inquiry on **\"{query}\"**:\n\n"
-                "- **Role-Based Access Control (RBAC)**: Enforces strict boundary isolation across all 5 authenticated roles (Patient, Doctor, Admin, Lab Tech, Pharmacy Staff).\n"
-                "- **Clinical Audit Log**: Tracks immutable chronological events for registrations, credential reviews, consultations, and dispensary actions.\n"
-                "- **Staff Provisioning**: Administrators can provision authorized Lab Technician and Pharmacy Staff accounts directly from the administration dashboard."
-            )
-        else:
-            # Patient Role
-            return (
-                f"### **CareAI Health Assistant Information**\n\n"
-                f"Regarding your health question on **\"{query}\"**:\n\n"
-                "- **General Health Overview**: Maintaining regular hydration, a balanced diet, consistent physical activity, and routine health check-ups supports long-term wellness.\n"
-                "- **Managing Your Care**: You can view your doctor appointments, digital prescriptions, and diagnostic lab reports directly in your patient portal.\n"
-                "- **Consulting Your Doctor**: For specific symptoms, medication changes, or diagnostic interpretations, please book a consultation with your verified CareAI physician.\n\n"
-                "**Important Note**: CareAI provides informational guidance and does not replace professional clinical evaluation or medical emergency services."
-            )
+        return clinical_engine.generate_clinical_response(user_prompt, role)
 
 
 ai_client = AIClient()

@@ -69,3 +69,18 @@ class AIChatResponse(BaseModel):
     safety_metadata: Optional[Dict[str, Any]] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class AIConfigRead(BaseModel):
+    """Schema representing active AI subsystem status."""
+    provider: str
+    model_name: str
+    has_live_credentials: bool
+    active_engine: str
+    is_live_ai: bool
+
+
+class AIConfigUpdate(BaseModel):
+    """Payload to configure or update the Gemini API key at runtime."""
+    api_key: str = Field(default="", description="Google Gemini API key from Google AI Studio")
+

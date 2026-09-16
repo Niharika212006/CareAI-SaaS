@@ -10,6 +10,8 @@ import {
   FlaskConical,
   Pill,
   ShieldCheck,
+  Key,
+  Cpu,
 } from 'lucide-react';
 import { USER_ROLES } from '../../utils/constants';
 
@@ -27,9 +29,12 @@ export function AIAssistantHeader({
   onNewConversation,
   isSidebarOpen,
   onToggleSidebar,
+  aiConfig,
+  onOpenKeyModal,
 }) {
   const roleConfig = ROLE_TITLES[role] || ROLE_TITLES[USER_ROLES.PATIENT];
   const IconComponent = roleConfig.icon;
+  const isLive = Boolean(aiConfig?.has_live_credentials);
 
   return (
     <div
@@ -100,24 +105,51 @@ export function AIAssistantHeader({
               {roleConfig.badge}
             </span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.6875rem', color: 'var(--secondary-500)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.6875rem', color: 'var(--secondary-500)', marginTop: '2px' }}>
             <span
               style={{
                 width: '6px',
                 height: '6px',
                 borderRadius: '50%',
-                background: '#10b981',
-                boxShadow: '0 0 6px #10b981',
+                background: isLive ? '#10b981' : '#0284c7',
+                boxShadow: isLive ? '0 0 6px #10b981' : '0 0 6px #0284c7',
                 display: 'inline-block',
               }}
             />
-            <span>Gemini AI Connected</span>
+            <span style={{ fontWeight: 600 }}>
+              {isLive ? 'Google Gemini Live AI' : 'Clinical Intelligence Engine'}
+            </span>
           </div>
         </div>
       </div>
 
       {/* Right Controls */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        {onOpenKeyModal && (
+          <button
+            type="button"
+            onClick={onOpenKeyModal}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.375rem',
+              background: isLive ? 'var(--success-50)' : 'var(--secondary-100)',
+              color: isLive ? 'var(--success-700)' : 'var(--secondary-700)',
+              border: `1px solid ${isLive ? 'var(--success-200)' : 'var(--secondary-200)'}`,
+              borderRadius: '8px',
+              padding: '0.375rem 0.625rem',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+            title="Configure Google Gemini API Key"
+          >
+            <Key size={13} />
+            <span>{isLive ? 'Gemini Active' : 'Configure API Key'}</span>
+          </button>
+        )}
+
         <button
           type="button"
           onClick={onNewConversation}

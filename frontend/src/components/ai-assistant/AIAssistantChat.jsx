@@ -8,6 +8,7 @@ import ChatMessage from './ChatMessage';
 import ChatInput from './ChatInput';
 import AILoadingIndicator from './AILoadingIndicator';
 import AIErrorState from './AIErrorState';
+import AIKeyModal from './AIKeyModal';
 
 export function AIAssistantChat({ isOpen, onClose }) {
   const { role } = useAuth();
@@ -21,11 +22,23 @@ export function AIAssistantChat({ isOpen, onClose }) {
   const [error, setError] = useState(null);
   const [lastUserMessage, setLastUserMessage] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
+  const [aiConfig, setAiConfig] = useState(null);
 
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, []);
+
+  // Fetch AI configuration and engine status
+  const fetchAIConfig = useCallback(async () => {
+    try {
+      const cfg = await aiAssistantService.getConfig();
+      setAiConfig(cfg);
+    } catch (err) {
+      console.error('Failed to load AI config:', err);
+    }
   }, []);
 
   // Fetch list of user conversations
@@ -41,12 +54,13 @@ export function AIAssistantChat({ isOpen, onClose }) {
     }
   }, []);
 
-  // Load conversation threads on open
+  // Load conversation threads and AI config on open
   useEffect(() => {
     if (isOpen) {
       fetchConversations();
+      fetchAIConfig();
     }
-  }, [isOpen, fetchConversations]);
+  }, [isOpen, fetchConversations, fetchAIConfig]);
 
   // Fetch message turns when activeConversationId changes
   useEffect(() => {
@@ -203,6 +217,8 @@ export function AIAssistantChat({ isOpen, onClose }) {
           onNewConversation={handleNewConversation}
           isSidebarOpen={isSidebarOpen}
           onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
+          aiConfig={aiConfig}
+          onOpenKeyModal={() => setIsKeyModalOpen(true)}
         />
 
         {/* Body (Sidebar + Chat Arena) */}
@@ -264,6 +280,13 @@ export function AIAssistantChat({ isOpen, onClose }) {
           </div>
         </div>
       </div>
+
+      {/* AI Key & Subsystem Configuration Modal */}
+      <AIKeyModal
+        isOpen={isKeyModalOpen}
+        onClose={() => setIsKeyModalOpen(false)}
+        onConfigUpdated={(newCfg) => setAiConfig(newCfg)}
+      />
     </div>
   );
 }
