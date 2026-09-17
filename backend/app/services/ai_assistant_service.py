@@ -125,8 +125,8 @@ class AIAssistantService:
         Execute an AI conversation turn:
         1. Validate conversation ownership or initialize new thread.
         2. Assemble bounded conversation context.
-        3. Inject role-specific system prompt & medical safety guardrails.
-        4. Call Gemini AI provider.
+        3. Inject role-specific system prompt & live database context.
+        4. Call Gemini AI provider via ai_client with fault tolerance.
         5. Persist user & assistant messages in transactional database.
         """
         conversation: Optional[AIConversation] = None
@@ -166,8 +166,19 @@ class AIAssistantService:
         # Sort chronologically for prompt assembly
         prior_messages.sort(key=lambda m: m.created_at)
 
-        # 3. Retrieve role-specific system prompt & assemble bounded user prompt
+        # 3. Retrieve role-specific system prompt & live database context
         system_prompt = get_system_prompt_for_role(user.role)
+        from app.services.ai.context_retrieval import get_context_for_role
+        live_context = get_context_for_role(db, user, request.message)
+        if live_context:
+            system_prompt = (
+                f"{system_prompt}\n\n"
+                f"=== LIVE SYSTEM DATABASE CONTEXT ===\n"
+                f"{live_context}\n"
+                f"INSTRUCTION: Ground your factual responses strictly in this verified database context. "
+                f"Do not invent or assume data outside of what is provided here."
+            )
+
         assembled_prompt = self._assemble_bounded_prompt(
             previous_messages=prior_messages,
             current_message=request.message,

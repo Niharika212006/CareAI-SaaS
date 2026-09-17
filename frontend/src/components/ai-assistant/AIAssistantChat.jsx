@@ -9,6 +9,7 @@ import ChatInput from './ChatInput';
 import AILoadingIndicator from './AILoadingIndicator';
 import AIErrorState from './AIErrorState';
 import AIKeyModal from './AIKeyModal';
+import PrescriptionUploadModal from './PrescriptionUploadModal';
 
 export function AIAssistantChat({ isOpen, onClose }) {
   const { role } = useAuth();
@@ -23,6 +24,7 @@ export function AIAssistantChat({ isOpen, onClose }) {
   const [lastUserMessage, setLastUserMessage] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [aiConfig, setAiConfig] = useState(null);
 
   const messagesEndRef = useRef(null);
@@ -176,6 +178,37 @@ export function AIAssistantChat({ isOpen, onClose }) {
     }
   };
 
+  // Handler: Prescription Saved via Multimodal Upload Modal
+  const handlePrescriptionSaved = (result, draft) => {
+    const userMsg = {
+      id: Date.now(),
+      conversation_id: activeConversationId || 0,
+      sender: 'USER',
+      content: `I uploaded and verified my prescription for "${draft?.diagnosis || 'Prescription Review'}".`,
+      created_at: new Date().toISOString(),
+    };
+
+    const scheduleText = (result.medication_schedule || []).map((s) => `- ${s}`).join('\n');
+    const warningText = (result.interaction_warnings || []).map((w) => `- ${w}`).join('\n');
+
+    const assistantMsg = {
+      id: Date.now() + 1,
+      conversation_id: activeConversationId || 0,
+      sender: 'ASSISTANT',
+      content:
+        `### Prescription Verified & Saved to Health Records\n\n` +
+        `**Diagnosis / Condition:** ${draft?.diagnosis || 'Clinical Prescription'}\n` +
+        `**Prescribing Doctor:** ${draft?.doctor_name || 'Attending Physician'}\n\n` +
+        (scheduleText ? `**Medication Schedule:**\n${scheduleText}\n\n` : '') +
+        (warningText ? `**Safety & Interaction Guidance:**\n${warningText}\n\n` : '') +
+        `*${result.disclaimer}*`,
+      model_name: 'CareAI Clinical Knowledge Engine',
+      created_at: new Date().toISOString(),
+    };
+
+    setMessages((prev) => [...prev, userMsg, assistantMsg]);
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -256,7 +289,11 @@ export function AIAssistantChat({ isOpen, onClose }) {
               }}
             >
               {messages.length === 0 && !isLoadingMessages && !isSending ? (
-                <EmptyConversationState role={role} onSelectPrompt={handleSendMessage} />
+                <EmptyConversationState
+                  role={role}
+                  onSelectPrompt={handleSendMessage}
+                  onUploadClick={role === 'PATIENT' ? () => setIsUploadModalOpen(true) : null}
+                />
               ) : (
                 <>
                   {messages.map((msg, index) => (
@@ -276,7 +313,11 @@ export function AIAssistantChat({ isOpen, onClose }) {
             </div>
 
             {/* Input Box */}
-            <ChatInput onSendMessage={handleSendMessage} isSending={isSending} />
+            <ChatInput
+              onSendMessage={handleSendMessage}
+              isSending={isSending}
+              onUploadClick={role === 'PATIENT' ? () => setIsUploadModalOpen(true) : null}
+            />
           </div>
         </div>
       </div>
@@ -286,6 +327,13 @@ export function AIAssistantChat({ isOpen, onClose }) {
         isOpen={isKeyModalOpen}
         onClose={() => setIsKeyModalOpen(false)}
         onConfigUpdated={(newCfg) => setAiConfig(newCfg)}
+      />
+
+      {/* Prescription Multimodal Upload & Verification Modal */}
+      <PrescriptionUploadModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        onPrescriptionSaved={handlePrescriptionSaved}
       />
     </div>
   );

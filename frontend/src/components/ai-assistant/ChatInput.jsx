@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Shield, CornerDownLeft } from 'lucide-react';
+import { Send, Shield, CornerDownLeft, Paperclip } from 'lucide-react';
 
-export function ChatInput({ onSendMessage, isSending, placeholder = 'Ask CareAI a question...' }) {
+export function ChatInput({ onSendMessage, isSending, onUploadClick = null, placeholder = 'Ask CareAI a question...' }) {
   const [text, setText] = useState('');
   const textareaRef = useRef(null);
 
@@ -60,6 +60,32 @@ export function ChatInput({ onSendMessage, isSending, placeholder = 'Ask CareAI 
           }}
           className="chat-input-wrapper"
         >
+          {onUploadClick && (
+            <button
+              type="button"
+              onClick={onUploadClick}
+              disabled={isSending}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--secondary-500)',
+                cursor: isSending ? 'not-allowed' : 'pointer',
+                padding: '0.35rem',
+                borderRadius: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: '0.5rem',
+                marginBottom: '4px',
+                transition: 'color 0.15s ease',
+              }}
+              className="chat-attach-btn"
+              title="Upload Prescription / Medical Document (PDF, JPG, PNG)"
+            >
+              <Paperclip size={18} />
+            </button>
+          )}
+
           <textarea
             ref={textareaRef}
             value={text}

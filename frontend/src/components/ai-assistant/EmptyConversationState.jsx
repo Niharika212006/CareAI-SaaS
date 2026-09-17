@@ -13,15 +13,15 @@ import { USER_ROLES } from '../../utils/constants';
 const ROLE_CONFIGS = {
   [USER_ROLES.PATIENT]: {
     name: 'CareAI Health Assistant',
-    subtitle: 'Plain-language health education, prescription guidance, and medical report explanations.',
+    subtitle: 'Personalized health records, active prescription schedules, and clinical guidance.',
     icon: HeartHandshake,
     accentColor: '#0d9488',
     gradient: 'linear-gradient(135deg, #0d9488 0%, #0284c7 100%)',
     suggestions: [
-      'Explain my medical report in simple terms',
-      'Help me understand my prescription instructions',
-      'What does systolic blood pressure mean?',
-      'General lifestyle tips for heart health',
+      'Summarize my active prescriptions and daily dosage schedule',
+      'Explain my upcoming doctor appointments and preparation steps',
+      'Review my latest laboratory reports and biomarker values',
+      'Upload and review a new prescription document',
     ],
   },
   [USER_ROLES.DOCTOR]: {
@@ -31,10 +31,10 @@ const ROLE_CONFIGS = {
     accentColor: '#4f46e5',
     gradient: 'linear-gradient(135deg, #4f46e5 0%, #0284c7 100%)',
     suggestions: [
-      'Summarize patient longitudinal history and allergies',
+      'Summarize my clinical appointment schedule for today',
+      'Show patients with upcoming consultations requiring chart review',
+      'Review pending lab requisitions and diagnostic workups',
       'Draft structured clinical encounter SOAP notes',
-      'Highlight drug interactions for polypharmacy regimen',
-      'Differential diagnostic considerations for persistent cough',
     ],
   },
   [USER_ROLES.LAB_TECHNICIAN]: {
@@ -44,10 +44,10 @@ const ROLE_CONFIGS = {
     accentColor: '#7c3aed',
     gradient: 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)',
     suggestions: [
-      'Explain serum electrolyte test methodology and intervals',
-      'Help categorize a clinical biochemistry report',
-      'Specimen stability and storage guidelines for CBC',
-      'Accessioning checklist for abnormal quality control values',
+      'Show my pending specimen analysis queue',
+      'Review critical panic values and abnormal diagnostic flags',
+      'Check specimen accessioning guidelines for blood chemistry',
+      'Show lab orders awaiting verification in my department',
     ],
   },
   [USER_ROLES.PHARMACY_STAFF]: {
@@ -57,10 +57,10 @@ const ROLE_CONFIGS = {
     accentColor: '#0284c7',
     gradient: 'linear-gradient(135deg, #0284c7 0%, #0d9488 100%)',
     suggestions: [
-      'Explain drug-drug interaction mechanism between ACE inhibitors and NSAIDs',
-      'Check dietary and food timing restrictions for Levothyroxine',
-      'Clarify prescription sig code and pediatric dosage calculations',
-      'Identify potential therapeutic class duplications in regimen',
+      'Show prescriptions waiting for verification in the queue',
+      'Check prescriptions ready for patient dispensing',
+      'Analyze drug-drug interactions for multi-medication regimens',
+      'Review prescription fulfillment audit log',
     ],
   },
   [USER_ROLES.ADMIN]: {
@@ -70,17 +70,25 @@ const ROLE_CONFIGS = {
     accentColor: '#d97706',
     gradient: 'linear-gradient(135deg, #d97706 0%, #475569 100%)',
     suggestions: [
-      'Explain platform throughput and user onboarding statistics',
-      'Summarize doctor application credentialing workflow',
-      'Overview of HIPAA and RBAC privacy policy compliance',
-      'Review platform audit log retention and operational settings',
+      'Provide platform overview: user counts by role and doctor approvals',
+      'How many appointments are scheduled across all departments today?',
+      'What is the breakdown of prescriptions and lab orders platform-wide?',
+      'Show platform operational health and governance metrics',
     ],
   },
 };
 
-export function EmptyConversationState({ role, onSelectPrompt }) {
+export function EmptyConversationState({ role, onSelectPrompt, onUploadClick = null }) {
   const config = ROLE_CONFIGS[role] || ROLE_CONFIGS[USER_ROLES.PATIENT];
   const IconComponent = config.icon;
+
+  const handlePromptClick = (prompt) => {
+    if (prompt === 'Upload and review a new prescription document' && onUploadClick) {
+      onUploadClick();
+      return;
+    }
+    onSelectPrompt(prompt);
+  };
 
   return (
     <div
@@ -158,7 +166,7 @@ export function EmptyConversationState({ role, onSelectPrompt }) {
               key={idx}
               type="button"
               className="suggestion-prompt-btn"
-              onClick={() => onSelectPrompt(prompt)}
+              onClick={() => handlePromptClick(prompt)}
               style={{
                 background: '#ffffff',
                 border: '1px solid var(--secondary-200)',

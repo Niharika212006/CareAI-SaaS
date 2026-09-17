@@ -474,6 +474,21 @@ class ClinicalEngine:
                 f"> **Immediate Action Required**: Call emergency services (911 / 112) or go to the nearest emergency room immediately. Do not drive yourself."
             )
 
+        # 1b. Check for Authorized Live Database Context (Exact Grounded Data)
+        context_match = re.search(
+            r"=== AUTHORIZED LIVE DATABASE CONTEXT \(VERIFIED APPLICATION DATA\) ===\s*(.*?)\s*=== CONVERSATION HISTORY ===",
+            user_prompt,
+            re.DOTALL,
+        )
+        if context_match:
+            raw_ctx_str = context_match.group(1).strip()
+            grounded_ans = cls._handle_live_context_query(clean_query, raw_ctx_str, role)
+            if grounded_ans:
+                output_parts.append(grounded_ans)
+                disclaimer = cls._get_disclaimer(role)
+                output_parts.append(disclaimer)
+                return "\n\n".join(output_parts)
+
         # 2. Check for Platform / SaaS Navigation questions
         platform_response = cls._handle_platform_queries(clean_query, role)
         if platform_response:
@@ -507,6 +522,139 @@ class ClinicalEngine:
         output_parts.append(disclaimer)
 
         return "\n\n".join(output_parts)
+
+    @classmethod
+    def _handle_live_context_query(cls, clean_query: str, raw_ctx_str: str, role: UserRole) -> Optional[str]:
+        """Synthesize query against real authorized database context."""
+        import json
+        if not raw_ctx_str or raw_ctx_str.startswith("(No database"):
+            return None
+
+        try:
+            ctx = json.loads(raw_ctx_str)
+        except Exception:
+            return None
+
+        if not isinstance(ctx, dict):
+            return None
+
+        q_lower = clean_query.lower()
+
+        # 1. PATIENT queries on medications, prescriptions, appointments
+        if role == UserRole.PATIENT:
+            if any(k in q_lower for k in ["medication", "prescription", "drug", "medicine", "active", "taking"]):
+                prescriptions = ctx.get("prescriptions", [])
+                if isinstance(prescriptions, list) and prescriptions:
+                    lines = ["### **Your Active Prescriptions & Medication Schedule**\n"]
+                    lines.append("Based on your verified medical records in CareAI:\n")
+                    for rx in prescriptions:
+                        if isinstance(rx, dict):
+                            diag = rx.get("diagnosis", "Prescription")
+                            doc = rx.get("doctor", "Physician")
+                            lines.append(f"**Diagnosis:** {diag} *(Prescribed by {doc})*")
+                            items = rx.get("items", [])
+                            if isinstance(items, list):
+                                for it in items:
+                                    if isinstance(it, dict):
+                                        name = it.get("name", "Medication")
+                                        dose = it.get("dosage", "As directed")
+                                        freq = it.get("frequency", "Daily")
+                                        dur = it.get("duration", "")
+                                        instr = it.get("instructions", "Take as directed")
+                                        lines.append(f"- **{name} ({dose})**: {freq} for {dur} — {instr}")
+                                    else:
+                                        lines.append(f"- {it}")
+                            lines.append("")
+                        else:
+                            lines.append(f"- {rx}")
+                    lines.append("**Administration Tips**:\n- Take your medications at consistent times each day with a full glass of water.\n- Do not skip doses or alter amounts without speaking with your doctor.")
+                    return "\n".join(lines)
+                else:
+                    return "You currently have no active digital prescriptions recorded in CareAI. If you have an outside paper prescription, you can upload it using the paperclip button for AI verification and review."
+
+            if any(k in q_lower for k in ["appointment", "doctor", "visit", "schedule"]):
+                appts = ctx.get("appointments", [])
+                if isinstance(appts, list) and appts:
+                    lines = ["### **Your Consultation Schedule**\n"]
+                    for a in appts:
+                        if isinstance(a, dict):
+                            lines.append(f"- **{a.get('doctor', 'Physician')}** ({a.get('status', 'Scheduled')}): {a.get('scheduled_start', 'Upcoming')} — *{a.get('reason', 'Consultation')}*")
+                        else:
+                            lines.append(f"- {a}")
+                    return "\n".join(lines)
+
+        # 2. DOCTOR queries on today's appointments, schedule, requisitions
+        elif role == UserRole.DOCTOR:
+            if any(k in q_lower for k in ["appointment", "today", "schedule", "consultation", "patient"]):
+                today_appts = ctx.get("appointments_today", [])
+                lines = [f"### **Clinical Schedule for Today ({ctx.get('doctor_name', 'Doctor')})**\n"]
+                if isinstance(today_appts, list) and today_appts:
+                    lines.append(f"You have **{len(today_appts)}** consultation(s) scheduled for today:\n")
+                    for a in today_appts:
+                        if isinstance(a, dict):
+                            lines.append(f"- **{a.get('time', 'TBD')}**: Patient **{a.get('patient_name', 'Patient')}** — Reason: *{a.get('reason', 'Consultation')}* (Status: {a.get('status', 'Scheduled')})")
+                        else:
+                            lines.append(f"- {a}")
+                else:
+                    lines.append("You have no consultations scheduled for today. You can review upcoming bookings or pending lab requisitions.")
+                return "\n".join(lines)
+
+        # 3. ADMIN queries on system statistics, counts, users, doctors, appointments
+        elif role == UserRole.ADMIN:
+            if any(k in q_lower for k in ["count", "user", "doctor", "appointment", "prescription", "lab", "stat", "today", "overview", "system", "platform"]):
+                u_stats = ctx.get("users", {}) if isinstance(ctx.get("users"), dict) else {}
+                d_stats = ctx.get("doctors", {}) if isinstance(ctx.get("doctors"), dict) else {}
+                p_stats = ctx.get("prescriptions", {}) if isinstance(ctx.get("prescriptions"), dict) else {}
+                a_stats = ctx.get("appointments", {}) if isinstance(ctx.get("appointments"), dict) else {}
+                l_stats = ctx.get("laboratory", {}) if isinstance(ctx.get("laboratory"), dict) else {}
+                u_by_role = u_stats.get("by_role", {}) if isinstance(u_stats.get("by_role"), dict) else {}
+                d_by_appr = d_stats.get("by_approval", {}) if isinstance(d_stats.get("by_approval"), dict) else {}
+                p_by_status = p_stats.get("by_status", {}) if isinstance(p_stats.get("by_status"), dict) else {}
+                l_by_status = l_stats.get("by_status", {}) if isinstance(l_stats.get("by_status"), dict) else {}
+
+                lines = [
+                    "### **CareAI Platform Operational Intelligence**\n",
+                    f"- **Total Registered Users**: {u_stats.get('total', 0)} " +
+                    f"(Patients: {u_by_role.get('PATIENT', 0)}, " +
+                    f"Doctors: {u_by_role.get('DOCTOR', 0)}, " +
+                    f"Lab Techs: {u_by_role.get('LAB_TECHNICIAN', 0)}, " +
+                    f"Pharmacy Staff: {u_by_role.get('PHARMACY_STAFF', 0)}, " +
+                    f"Admins: {u_by_role.get('ADMIN', 0)})",
+                    f"- **Doctor Credentialing**: {d_stats.get('total_profiles', 0)} total profiles ({d_by_appr.get('APPROVED', 0)} Approved, {d_by_appr.get('PENDING', 0)} Pending)",
+                    f"- **Appointments**: {a_stats.get('total', 0)} total ({a_stats.get('scheduled_today', 0)} scheduled for today)",
+                    f"- **Prescriptions**: {p_stats.get('total', 0)} total ({p_by_status.get('PRESCRIBED', 0)} Prescribed, {p_by_status.get('DISPENSED', 0)} Dispensed)",
+                    f"- **Laboratory Orders**: {l_stats.get('total_orders', 0)} total ({l_by_status.get('SAMPLE_PENDING', 0)} Sample Pending, {l_stats.get('stat_priority_orders', 0)} STAT)",
+                ]
+                return "\n".join(lines)
+
+        # 4. LAB_TECHNICIAN queries on queue, specimens, panic values
+        elif role == UserRole.LAB_TECHNICIAN:
+            if any(k in q_lower for k in ["queue", "sample", "pending", "order", "test", "verification"]):
+                pending = ctx.get("pending_samples", [])
+                lines = [f"### **Laboratory Processing Queue**\n"]
+                if isinstance(pending, list):
+                    lines.append(f"- **Pending Specimens**: {len(pending)} order(s) awaiting sample accessioning/processing.")
+                    for p in pending:
+                        if isinstance(p, dict):
+                            tests = ", ".join(p.get("tests", [])) if isinstance(p.get("tests"), list) else "Tests"
+                            lines.append(f"  - Order #{p.get('order_id')}: Patient **{p.get('patient_name')}** ({p.get('priority')}) — Tests: {tests}")
+                        else:
+                            lines.append(f"  - {p}")
+                return "\n".join(lines)
+
+        # 5. PHARMACY_STAFF queries on queue, dispensary, prescriptions
+        elif role == UserRole.PHARMACY_STAFF:
+            if any(k in q_lower for k in ["queue", "prescription", "dispensary", "ready", "review", "dispense"]):
+                review = ctx.get("awaiting_review_queue", [])
+                ready = ctx.get("ready_for_dispensing_queue", [])
+                lines = [
+                    f"### **CareAI Dispensary Fulfillment Queue**\n",
+                    f"- **Awaiting Pharmacist Verification**: {len(review) if isinstance(review, list) else 0} prescription(s)",
+                    f"- **Ready for Patient Pickup/Dispensing**: {len(ready) if isinstance(ready, list) else 0} prescription(s)",
+                ]
+                return "\n".join(lines)
+
+        return None
 
     @staticmethod
     def _format_condition_response(data: Dict[str, Any], role: UserRole, query: str) -> str:

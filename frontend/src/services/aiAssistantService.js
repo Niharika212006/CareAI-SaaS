@@ -58,6 +58,28 @@ export const aiAssistantService = {
   async updateConfig(apiKey) {
     return await api.post('/ai-assistant/config', { api_key: apiKey });
   },
+
+  /**
+   * Upload a prescription file (PDF, JPG, PNG) for multimodal extraction & review.
+   * @param {File} file
+   */
+  async uploadPrescriptionDraft(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    return await api.post('/ai-assistant/patient/upload-prescription', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
+
+  /**
+   * Confirm and save extracted prescription into patient records.
+   * @param {Object} payload
+   */
+  async confirmPrescription(payload) {
+    return await api.post('/ai-assistant/patient/confirm-prescription', payload);
+  },
 };
 
 export default aiAssistantService;
