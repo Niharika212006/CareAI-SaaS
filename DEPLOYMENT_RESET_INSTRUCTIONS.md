@@ -45,7 +45,7 @@ Then trigger a manual deploy on the Web Service:
 
 ## Verification After Deployment
 Once deployed, verify:
-1. **Health Check:** `GET https://careai-backend.onrender.com/health` returns `{"status":"healthy","database":"connected"}`.
+1. **Health Check:** `GET https://careai-backend-e35r.onrender.com/health` returns `{"status":"healthy","database":"connected"}`.
 2. **Seed Initial Demo Data (Optional / Automatic):**
    In your Web Service Shell on Render, run:
    ```bash

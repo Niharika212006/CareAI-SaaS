@@ -32,6 +32,8 @@ export const INTERACTION_SEVERITY = {
   CRITICAL: 'CRITICAL',
 };
 
+export const PRODUCTION_API_BASE = 'https://careai-backend-e35r.onrender.com/api/v1';
+
 const rawApiUrl =
   (typeof import.meta !== 'undefined' &&
     import.meta.env &&
@@ -45,13 +47,14 @@ export const API_BASE_URL = (() => {
   }
   if (
     typeof window !== 'undefined' &&
-    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') &&
-    window.location.port === '5173'
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
   ) {
     return 'http://127.0.0.1:8000/api/v1';
   }
-  return '/api/v1';
+  return PRODUCTION_API_BASE;
 })();
+
+export const BACKEND_ROOT_URL = API_BASE_URL.replace(/\/api\/v1\/?$/, '');
 
 export const STORAGE_KEYS = {
   AUTH_TOKEN: 'healthcare_auth_token',

@@ -76,7 +76,7 @@ ALGORITHM="HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES="1440"
 
 # CORS (Whitelist your Vercel frontend URL)
-ALLOWED_ORIGINS="https://careai.vercel.app"
+ALLOWED_ORIGINS="https://care-ai-saa-s.vercel.app,https://care-ai-saa-s-git-main-pillu212006-4156s-projects.vercel.app,http://localhost:5173"
 
 # AI Integration
 AI_PROVIDER="gemini"
@@ -87,7 +87,7 @@ GEMINI_API_KEY="<your_google_gemini_api_key>"
 ### 4.2 Frontend (Vercel Project Settings)
 ```ini
 # API Gateway URL pointing to deployed Render Web Service
-VITE_API_URL=https://careai-backend.onrender.com/api/v1
+VITE_API_URL=https://careai-backend-e35r.onrender.com/api/v1
 ```
 
 ---

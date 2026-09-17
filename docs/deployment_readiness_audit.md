@@ -57,7 +57,7 @@ graph TD
 ### 3.2 Frontend (Vercel Project Settings)
 | Environment Variable | Required / Optional | Production Setting Recommendation |
 | :--- | :---: | :--- |
-| `VITE_API_URL` | **Required** | `https://careai-backend.onrender.com/api/v1` |
+| `VITE_API_URL` | **Required** | `https://careai-backend-e35r.onrender.com/api/v1` |
 
 ---
 

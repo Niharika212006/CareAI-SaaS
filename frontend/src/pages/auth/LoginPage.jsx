@@ -1,20 +1,42 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogIn, Activity, AlertCircle } from 'lucide-react';
+import { LogIn, Activity, AlertCircle, RefreshCw } from 'lucide-react';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import useAuth from '../../hooks/useAuth';
-import { USER_ROLES } from '../../utils/constants';
+import { USER_ROLES, BACKEND_ROOT_URL } from '../../utils/constants';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [connectingLong, setConnectingLong] = useState(false);
+  const timerRef = useRef(null);
 
   const { login, isAuthenticated, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Warm up Render cloud backend on mount to avoid cold-start delays
+  useEffect(() => {
+    fetch(`${BACKEND_ROOT_URL}/health`, { method: 'GET', mode: 'cors' }).catch(() => {});
+  }, []);
+
+  // Monitor long-running connection (Render free tier cold starts take 30-45s)
+  useEffect(() => {
+    if (loading) {
+      timerRef.current = setTimeout(() => {
+        setConnectingLong(true);
+      }, 3000);
+    } else {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      setConnectingLong(false);
+    }
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [loading]);
 
   // If already authenticated, redirect to appropriate role dashboard
   useEffect(() => {
@@ -34,7 +56,7 @@ export function LoginPage() {
   }, [isAuthenticated, authLoading, user, navigate]);
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     if (!email.trim() || !password.trim()) {
       setError('Please enter both email and password.');
       return;
@@ -105,14 +127,53 @@ export function LoginPage() {
             padding: '0.75rem 1rem',
             borderRadius: 'var(--radius-md)',
             fontSize: '0.875rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
             marginBottom: '1.5rem',
           }}
         >
-          <AlertCircle size={18} />
-          <span>{error}</span>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+            <AlertCircle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
+            <div style={{ flex: 1 }}>
+              <span>{error}</span>
+              {error.includes('backend server') || error.includes('waking up') ? (
+                <div style={{ marginTop: '0.5rem' }}>
+                  <button
+                    type="button"
+                    onClick={handleSubmit}
+                    className="btn btn-secondary"
+                    style={{
+                      padding: '0.3rem 0.75rem',
+                      fontSize: '0.8rem',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                    }}
+                  >
+                    <RefreshCw size={14} /> Retry Login
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {connectingLong && (
+        <div
+          style={{
+            background: '#f0f9ff',
+            border: '1px solid #bae6fd',
+            color: '#0369a1',
+            padding: '0.65rem 0.9rem',
+            borderRadius: 'var(--radius-md)',
+            fontSize: '0.825rem',
+            marginBottom: '1.25rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+          }}
+        >
+          <RefreshCw size={16} className="animate-spin" style={{ animation: 'spin 1.5s linear infinite' }} />
+          <span>Waking up cloud backend (Render free tier takes ~30-45s)...</span>
         </div>
       )}
 
@@ -150,7 +211,7 @@ export function LoginPage() {
           style={{ width: '100%', padding: '0.75rem' }}
           icon={LogIn}
         >
-          {loading ? 'Authenticating...' : 'Sign In'}
+          {loading ? (connectingLong ? 'Connecting to Cloud Backend...' : 'Authenticating...') : 'Sign In'}
         </Button>
       </form>
 

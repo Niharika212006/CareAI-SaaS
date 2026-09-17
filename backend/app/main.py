@@ -42,7 +42,10 @@ allowed_origins = list(set([
     "http://127.0.0.1:5173",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "https://care-ai-saa-s.vercel.app",
+    "https://care-ai-saa-s-git-main-pillu212006-4156s-projects.vercel.app",
     "https://care-ai-saa-j8tpn00lf-pillu212006-4156s-projects.vercel.app",
+    "https://careai.vercel.app",
 ]))
 
 app.add_middleware(

@@ -81,6 +81,17 @@ class ApiClient {
 
       return data;
     } catch (error) {
+      if (
+        (error instanceof TypeError && (error.message?.toLowerCase().includes('fetch') || !error.status)) ||
+        error.name === 'NetworkError'
+      ) {
+        const networkError = new Error(
+          'Unable to reach the CareAI backend server. The cloud instance may be waking up from sleep (~30-45s) or your network is offline. Please retry in a few moments.'
+        );
+        networkError.originalError = error;
+        networkError.isNetworkError = true;
+        throw networkError;
+      }
       throw error;
     }
   }

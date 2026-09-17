@@ -6,7 +6,24 @@
 ![Vite](https://img.shields.io/badge/Vite-5.4%2B-646CFF?logo=vite)
 ![Google Gemini](https://img.shields.io/badge/AI-Google%20Gemini%201.5%20Flash-4285F4?logo=google)
 ![Tests](https://img.shields.io/badge/Tests-165%2F165%20Passing-success)
-![Build](https://img.shields.io/badge/Production%20Build-Passing-success)
+![Production Build](https://img.shields.io/badge/Production%20Build-Passing-success)
+[![Vercel Deployment](https://img.shields.io/badge/Vercel-care--ai--saa--s.vercel.app-blue?logo=vercel)](https://care-ai-saa-s.vercel.app)
+[![Render Backend](https://img.shields.io/badge/Render-careai--backend--e35r-46E3B7?logo=render)](https://careai-backend-e35r.onrender.com)
+
+---
+
+## 🌐 Live Deployments & Platform Links
+
+| Resource | URL | Status |
+| :--- | :--- | :---: |
+| **Production Web Application (Vercel)** | [https://care-ai-saa-s.vercel.app](https://care-ai-saa-s.vercel.app) | 🟢 Live |
+| **Branch Preview (Vercel)** | [https://care-ai-saa-s-git-main-pillu212006-4156s-projects.vercel.app](https://care-ai-saa-s-git-main-pillu212006-4156s-projects.vercel.app) | 🟢 Live |
+| **Backend REST API (Render)** | [https://careai-backend-e35r.onrender.com](https://careai-backend-e35r.onrender.com) | 🟢 Live |
+| **Swagger API Documentation** | [https://careai-backend-e35r.onrender.com/docs](https://careai-backend-e35r.onrender.com/docs) | 🟢 Live |
+| **Health Check & Service Status** | [https://careai-backend-e35r.onrender.com/health](https://careai-backend-e35r.onrender.com/health) | 🟢 Live |
+
+> [!NOTE]
+> **Render Free Tier Notice:** The backend container automatically enters sleep mode after 15 minutes of inactivity. When visiting the portal after an idle period, the first request wakes the container in ~30–45 seconds. The frontend automatically pings the backend on load to initiate warm-up.
 
 ---
 
