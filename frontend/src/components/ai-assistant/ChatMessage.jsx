@@ -1,9 +1,14 @@
-import React from 'react';
-import { Sparkles, User as UserIcon, AlertTriangle, Clock } from 'lucide-react';
+import React, { useState } from 'react';
+import { Sparkles, User as UserIcon, AlertTriangle, Clock, ShieldCheck, FileText, ChevronDown, ChevronUp } from 'lucide-react';
 
 export function ChatMessage({ message, isLastTurn }) {
   const isUser = message.sender === 'USER';
   const hasEmergencyAlert = message.safety_metadata?.emergency_symptom_detected;
+  const [showSources, setShowSources] = useState(false);
+
+  const sources = message.sources || message.safety_metadata?.sources || [];
+  const hasSources = !isUser && Array.isArray(sources) && sources.length > 0;
+  const ragUsed = !isUser && (hasSources || message.safety_metadata?.rag_used);
 
   const formattedTime = message.created_at
     ? new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -95,7 +100,93 @@ export function ChatMessage({ message, isLastTurn }) {
             </div>
           )}
 
-          {/* Metadata Footer: Timestamp & Model badge */}
+          {/* Grounded Knowledge Base Sources Card */}
+          {hasSources && (
+            <div
+              style={{
+                marginTop: '0.25rem',
+                background: 'rgba(240, 253, 250, 0.85)',
+                border: '1px solid #ccfbf1',
+                borderRadius: '10px',
+                padding: '0.5rem 0.75rem',
+                fontSize: '0.75rem',
+              }}
+            >
+              <div
+                onClick={() => setShowSources((prev) => !prev)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                  color: 'var(--primary-700)',
+                  fontWeight: 600,
+                }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                  <ShieldCheck size={14} color="var(--primary-600)" />
+                  Grounded in Medical Knowledge ({sources.length} {sources.length === 1 ? 'Source' : 'Sources'})
+                </span>
+                {showSources ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </div>
+              {showSources && (
+                <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                  {sources.map((src, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '0.375rem 0.5rem',
+                        background: '#ffffff',
+                        border: '1px solid #e6fffa',
+                        borderRadius: '6px',
+                        fontSize: '0.6875rem',
+                        gap: '0.5rem',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', overflow: 'hidden' }}>
+                        <FileText size={12} color="var(--primary-600)" style={{ flexShrink: 0 }} />
+                        <span
+                          style={{
+                            fontWeight: 600,
+                            color: 'var(--secondary-800)',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
+                        >
+                          {src.document_name}
+                        </span>
+                        {src.page && (
+                          <span style={{ color: 'var(--secondary-500)', fontSize: '0.625rem', flexShrink: 0 }}>
+                            (p. {src.page})
+                          </span>
+                        )}
+                      </div>
+                      <span
+                        style={{
+                          background: '#f0fdf4',
+                          color: '#15803d',
+                          padding: '1px 6px',
+                          borderRadius: '4px',
+                          fontWeight: 600,
+                          fontSize: '0.625rem',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {src.document_type || 'REFERENCE'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Metadata Footer: Timestamp, Model badge & RAG badge */}
           <div
             style={{
               display: 'flex',
@@ -124,6 +215,25 @@ export function ChatMessage({ message, isLastTurn }) {
                 }}
               >
                 {message.model_name}
+              </span>
+            )}
+            {ragUsed && (
+              <span
+                style={{
+                  background: '#f0fdfa',
+                  color: 'var(--primary-700)',
+                  border: '1px solid #ccfbf1',
+                  padding: '1px 6px',
+                  borderRadius: '4px',
+                  fontWeight: 600,
+                  fontSize: '0.625rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '3px',
+                }}
+              >
+                <ShieldCheck size={10} color="var(--primary-600)" />
+                Knowledge Base
               </span>
             )}
           </div>

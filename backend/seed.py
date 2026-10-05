@@ -1305,6 +1305,135 @@ def seed_database(db: Optional[Session] = None):
         db.flush()
         print("  [OK] In-app notifications seeded across all roles.")
 
+        # Seed Clinical RAG Knowledge Documents
+        from app.models.knowledge import KnowledgeDocument
+        from app.rag import rag_service
+
+        guidelines_to_seed = [
+            {
+                "name": "Clinical Practice Guideline: Type 2 Diabetes Management",
+                "type": "CLINICAL_GUIDELINE",
+                "source": "American Diabetes Association (ADA) Standards of Care",
+                "allowed_roles": ["DOCTOR", "PATIENT", "PHARMACY_STAFF"],
+                "content": (
+                    "Type 2 Diabetes Mellitus Management Guidelines:\n\n"
+                    "Glycemic Targets: For most non-pregnant adults, the standard target HbA1c is < 7.0% (53 mmol/mol). "
+                    "Preprandial capillary plasma glucose target is 80–130 mg/dL (4.4–7.2 mmol/L), and peak postprandial "
+                    "capillary plasma glucose target is < 180 mg/dL (10.0 mmol/L).\n\n"
+                    "Pharmacotherapy: Metformin is the established first-line pharmacologic agent for type 2 diabetes unless contraindicated. "
+                    "Initiate at 500 mg once or twice daily with meals to reduce gastrointestinal adverse effects, titrating to a maximum effective "
+                    "dose of 2,000 mg/day. Check renal function: eGFR should be evaluated prior to initiation. Metformin is contraindicated if "
+                    "eGFR < 30 mL/min/1.73m^2 and initiation is not recommended if eGFR is between 30–45 mL/min/1.73m^2.\n\n"
+                    "Cardiovascular and Renal Comorbidities: In patients with established atherosclerotic cardiovascular disease (ASCVD), heart failure, "
+                    "or chronic kidney disease (CKD), an SGLT2 inhibitor (e.g., Empagliflozin, Dapagliflozin) or a GLP-1 receptor agonist "
+                    "(e.g., Semaglutide, Liraglutide) with demonstrated cardiovascular benefit is recommended regardless of baseline HbA1c.\n\n"
+                    "Hypoglycemia Prevention: Educate patients on symptoms of hypoglycemia (shakiness, diaphoresis, tachycardia, confusion). "
+                    "Rule of 15: Ingest 15 grams of fast-acting carbohydrate (e.g., 4 oz fruit juice, 3-4 glucose tablets), recheck blood glucose "
+                    "in 15 minutes, and repeat if glucose remains < 70 mg/dL."
+                ),
+            },
+            {
+                "name": "Emergency Clinical Protocol: Acute Chest Pain & STEMI Management",
+                "type": "CLINICAL_PROTOCOL",
+                "source": "American College of Cardiology / AHA Guidelines",
+                "allowed_roles": ["DOCTOR", "ADMIN", "LAB_TECHNICIAN"],
+                "content": (
+                    "Acute Coronary Syndrome & Chest Pain Clinical Protocol:\n\n"
+                    "Immediate Triage & Diagnostic Assessment: Any patient presenting with acute chest discomfort, pressure, or retrosternal "
+                    "radiation to the jaw or left arm must receive a 12-lead electrocardiogram (ECG) within 10 minutes of arrival. "
+                    "Evaluate immediately for ST-segment elevation myocardial infarction (STEMI) or new left bundle branch block (LBBB).\n\n"
+                    "Emergency Medical Interventions: Administer non-enteric coated Aspirin 162 mg to 325 mg orally, chewed immediately. "
+                    "Establish intravenous access. Administer sublingual nitroglycerin 0.4 mg every 5 minutes (up to 3 doses) for ischemic pain, "
+                    "provided systolic blood pressure > 90 mmHg and heart rate > 50 bpm. Nitroglycerin is strictly contraindicated if the patient "
+                    "has used phosphodiesterase-5 (PDE-5) inhibitors (e.g., sildenafil within 24 hours or tadalafil within 48 hours) or in suspected "
+                    "right ventricular infarction.\n\n"
+                    "Biomarker Evaluation: Draw high-sensitivity cardiac troponin I (hs-cTnI) at baseline (0 hours) and serial repeat at 1 to 3 hours. "
+                    "Diagnostic cut-off: Values above the 99th percentile upper reference limit indicate myocardial injury.\n\n"
+                    "Reperfusion Pathway: For confirmed STEMI, primary percutaneous coronary intervention (PCI) is the gold standard reperfusion strategy, "
+                    "with a strict door-to-balloon time goal of less than 90 minutes. If PCI is unavailable within 120 minutes, initiate intravenous fibrinolytic "
+                    "therapy within 30 minutes of medical contact."
+                ),
+            },
+            {
+                "name": "Clinical Pharmacology Reference: Warfarin Anticoagulation Safety",
+                "type": "DRUG_INFORMATION",
+                "source": "FDA Prescribing Information & Antithrombotic Guidelines",
+                "allowed_roles": ["DOCTOR", "PHARMACY_STAFF", "PATIENT"],
+                "content": (
+                    "Warfarin Sodium Pharmacotherapy and Anticoagulation Monitoring:\n\n"
+                    "Mechanism and Therapeutic Range: Warfarin is a synthetic vitamin K antagonist that competitively inhibits the vitamin K epoxide "
+                    "reductase complex 1 (VKORC1), depleting functional hepatic synthesis of clotting factors II, VII, IX, and X as well as regulatory proteins C and S. "
+                    "Target International Normalized Ratio (INR) is 2.0 to 3.0 for most clinical indications including non-valvular atrial fibrillation, deep vein thrombosis "
+                    "(DVT), and pulmonary embolism (PE). For mechanical mitral prosthetic heart valves, target INR is 2.5 to 3.5.\n\n"
+                    "Critical Drug-Drug Interactions: Warfarin is metabolized primarily by hepatic cytochrome P450 CYP2C9 and CYP3A4. "
+                    "Potent CYP inhibitors (Amiodarone, Ciprofloxacin, Fluconazole, Metronidazole, Trimethoprim-Sulfamethoxazole) drastically decrease warfarin clearance, "
+                    "provoking sudden supratherapeutic INR prolongation and fatal bleeding risk. Co-administration of Non-Steroidal Anti-Inflammatory Drugs (NSAIDs) "
+                    "such as ibuprofen, naproxen, or high-dose aspirin triggers dual antiplatelet and gastric mucosal injury, dramatically increasing major GI bleeding.\n\n"
+                    "Dietary Guidance: Patients must maintain consistent dietary intake of vitamin K-rich foods (spinach, kale, broccoli, Brussels sprouts). "
+                    "Abrupt increases in dietary vitamin K directly antagonize warfarin and decrease INR; abrupt reductions in vitamin K intake elevate INR and bleeding risk."
+                ),
+            },
+            {
+                "name": "Diagnostic Laboratory Reference: Critical Panic Values & Specimen Protocols",
+                "type": "LAB_REFERENCE",
+                "source": "College of American Pathologists (CAP) & Clinical Laboratory Standards",
+                "allowed_roles": ["LAB_TECHNICIAN", "DOCTOR", "ADMIN"],
+                "content": (
+                    "Laboratory Critical Panic Alerts and Diagnostic Procedures:\n\n"
+                    "Critical Panic Value Thresholds: Clinical results that represent an immediate, life-threatening danger requiring urgent physician intervention:\n"
+                    "- Serum Potassium (K+): Less than 2.8 mmol/L (severe hypokalemia risking ventricular arrhythmias) or greater than 6.2 mmol/L (severe hyperkalemia risking cardiac arrest).\n"
+                    "- Fasting Blood Glucose: Less than 50 mg/dL (severe neuroglycopenic hypoglycemia) or greater than 400 mg/dL (diabetic ketoacidosis / hyperosmolar hyperglycemic state).\n"
+                    "- Platelet Count: Less than 20,000/uL (extreme spontaneous intracranial or GI hemorrhage risk).\n"
+                    "- Hemoglobin: Less than 6.5 g/dL (acute hemodynamic compromise).\n"
+                    "- High-Sensitivity Cardiac Troponin I: Greater than 0.04 ng/mL with clinical delta.\n\n"
+                    "Immediate Notification Protocol: The testing technologist must perform immediate instrument delta check and verify specimen integrity "
+                    "(absence of hemolysis, lipemia, or clot). Once verified, the ordering physician or on-duty emergency clinician must be notified by direct "
+                    "telephone call within 15 minutes of result release, documenting recipient clinician name, date, time, and read-back verification.\n\n"
+                    "Specimen Rejection Criteria: Grossly hemolyzed specimens must be rejected for potassium, LD, and AST measurements due to erythrocyte intracellular leakage."
+                ),
+            },
+            {
+                "name": "Hospital Surgical Protocol: Post-Operative Discharge & Wound Care",
+                "type": "HOSPITAL_PROCEDURE",
+                "source": "Hospital Surgical Safety and Recovery Guidelines",
+                "allowed_roles": ["PATIENT", "DOCTOR", "ADMIN"],
+                "content": (
+                    "Post-Operative Recovery and Surgical Incision Care Guidelines:\n\n"
+                    "Incision Management: Keep surgical dressing clean, dry, and intact for the first 24 to 48 hours following surgery. "
+                    "After 48 hours, dressings may typically be removed unless steri-strips, surgical glue, or surgical drains are in place. "
+                    "Patients may gently shower with mild soap and warm water, patting the incision dry with a clean towel. Do NOT soak the incision in baths, "
+                    "hot tubs, or swimming pools until cleared by the operating surgeon.\n\n"
+                    "Infection Red Flags: Contact the surgical clinic or emergency department immediately if experiencing: fever above 101.0 F (38.3 C), "
+                    "increasing redness or erythema spreading beyond the incision border, localized heat/warmth, purulent or foul-smelling drainage, "
+                    "or wound dehiscence (separation of incision edges).\n\n"
+                    "Thromboembolism Mitigation: Early ambulation is the primary non-pharmacologic preventative measure against deep vein thrombosis (DVT) "
+                    "and pulmonary embolism (PE). Patients should walk short distances every 2 to 3 hours during waking hours, wear sequential compression "
+                    "stockings as prescribed, and perform seated calf pump exercises.\n\n"
+                    "Follow-Up Consultations: Routine post-operative evaluation is scheduled within 7 to 14 days for wound inspection and suture/staple removal."
+                ),
+            },
+        ]
+
+        admin_user = db.query(User).filter(User.role == UserRole.ADMIN).first()
+        admin_id = admin_user.id if admin_user else None
+
+        for item in guidelines_to_seed:
+            existing_doc = db.query(KnowledgeDocument).filter(
+                KnowledgeDocument.document_name == item["name"]
+            ).first()
+            if not existing_doc:
+                rag_service.index_knowledge_document(
+                    db=db,
+                    document_name=item["name"],
+                    document_type=item["type"],
+                    content=item["content"],
+                    source=item["source"],
+                    uploaded_by_user_id=admin_id,
+                    allowed_roles=item["allowed_roles"],
+                    document_date=datetime.now(timezone.utc),
+                )
+        print("  [OK] Clinical RAG Knowledge Guidelines and Protocols seeded successfully.")
+
         db.commit()
         print("\n[SUCCESS] CareAI demo data seeded successfully with 100% role fidelity and idempotency!")
     except Exception as e:

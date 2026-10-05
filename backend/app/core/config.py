@@ -57,6 +57,13 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
     AI_MODEL_NAME: str = os.getenv("AI_MODEL_NAME", "gemini-1.5-flash")
 
+    # RAG (Retrieval-Augmented Generation) Configuration
+    RAG_ENABLED: bool = os.getenv("RAG_ENABLED", "true").lower() in ("true", "1", "yes")
+    EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5")
+    RAG_TOP_K: int = int(os.getenv("RAG_TOP_K", "5"))
+    RAG_CHUNK_SIZE: int = int(os.getenv("RAG_CHUNK_SIZE", "800"))
+    RAG_CHUNK_OVERLAP: int = int(os.getenv("RAG_CHUNK_OVERLAP", "100"))
+
     def get_cors_origins(self) -> List[str]:
         """Parse ALLOWED_ORIGINS into a clean list of strings."""
         if isinstance(self.ALLOWED_ORIGINS, str):

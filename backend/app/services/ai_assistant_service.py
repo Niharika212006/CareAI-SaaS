@@ -179,6 +179,22 @@ class AIAssistantService:
                 f"Do not invent or assume data outside of what is provided here."
             )
 
+        # 3b. Role-Aware Medical RAG Retrieval
+        from app.rag import rag_service
+        rag_result = rag_service.retrieve(
+            db=db,
+            query=request.message,
+            user=user,
+        )
+        if rag_result.rag_used and rag_result.context_text:
+            system_prompt = (
+                f"{system_prompt}\n\n"
+                f"{rag_result.context_text}\n"
+                f"INSTRUCTION: Answer using the retrieved medical context whenever relevant. "
+                f"Do not invent clinical facts not supported by the retrieved context. "
+                f"If the retrieved context is insufficient, state that clearly."
+            )
+
         assembled_prompt = self._assemble_bounded_prompt(
             previous_messages=prior_messages,
             current_message=request.message,
@@ -234,7 +250,10 @@ class AIAssistantService:
         db.commit()
 
         # 6. Safety metadata evaluation
-        safety_metadata = self._evaluate_safety_metadata(request.message)
+        safety_metadata = self._evaluate_safety_metadata(request.message) or {}
+        if rag_result.rag_used:
+            safety_metadata["rag_used"] = True
+            safety_metadata["sources_count"] = len(rag_result.sources)
 
         return AIChatResponse(
             conversation_id=conversation.id,
@@ -243,6 +262,7 @@ class AIAssistantService:
             model_name=ai_client.model_name,
             created_at=now,
             safety_metadata=safety_metadata,
+            sources=rag_result.sources if rag_result.rag_used else None,
         )
 
     def list_conversations(

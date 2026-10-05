@@ -16,6 +16,7 @@ from app.api.routes.document_analyses import router as document_analyses_router
 from app.api.routes.ai_assistant import router as ai_assistant_router
 from app.api.routes.lab import router as lab_router
 from app.api.routes.pharmacy import router as pharmacy_router
+from app.api.routes.rag import router as rag_router
 
 api_router = APIRouter()
 
@@ -35,5 +36,6 @@ api_router.include_router(document_analyses_router)
 api_router.include_router(ai_assistant_router)
 api_router.include_router(lab_router)
 api_router.include_router(pharmacy_router)
+api_router.include_router(rag_router)
 
 

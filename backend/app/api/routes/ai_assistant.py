@@ -384,6 +384,13 @@ def confirm_prescription(
         metadata_json={"document_id": medical_doc.id, "prescription_id": prescription_id},
     )
 
+    # Safely index confirmed prescription document into Role-Aware RAG
+    try:
+        from app.rag import rag_service
+        rag_service.index_medical_document_safe(db, medical_doc.id)
+    except Exception:
+        pass
+
     return PrescriptionConfirmResponse(
         document_id=medical_doc.id,
         prescription_id=prescription_id,

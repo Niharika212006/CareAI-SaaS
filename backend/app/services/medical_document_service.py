@@ -88,6 +88,13 @@ class MedicalDocumentService:
             metadata_json={"document_id": doc.id},
         )
 
+        # Asynchronously or safely index into Role-Aware RAG Vector Store
+        try:
+            from app.rag import rag_service
+            rag_service.index_medical_document_safe(db, doc.id)
+        except Exception:
+            pass
+
         return doc
 
     @staticmethod
