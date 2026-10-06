@@ -32,8 +32,4 @@ pypdf>=5.0.0
 # Official AI & LLM SDK
 google-genai>=1.0.0
 
-# Vector Embeddings & RAG Knowledge Store
-pgvector>=0.2.5
-fastembed>=0.3.0
-
 

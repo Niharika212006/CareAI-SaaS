@@ -153,7 +153,6 @@ export function AIAssistantChat({ isOpen, onClose }) {
         model_name: response.model_name,
         created_at: response.created_at,
         safety_metadata: response.safety_metadata,
-        sources: response.sources,
       };
 
       setMessages((prev) => [...prev, assistantMsg]);

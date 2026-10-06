@@ -23,11 +23,6 @@ from app.models.lab import (
     SampleCondition,
     ResultFlag,
 )
-from app.models.knowledge import (
-    KnowledgeDocument,
-    KnowledgeChunk,
-    KnowledgeDocumentType,
-)
 
 __all__ = [
     "TimeStampedModel",
@@ -63,7 +58,4 @@ __all__ = [
     "LabOrderStatus",
     "SampleCondition",
     "ResultFlag",
-    "KnowledgeDocument",
-    "KnowledgeChunk",
-    "KnowledgeDocumentType",
 ]

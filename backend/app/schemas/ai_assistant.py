@@ -67,7 +67,6 @@ class AIChatResponse(BaseModel):
     model_name: str
     created_at: datetime
     safety_metadata: Optional[Dict[str, Any]] = None
-    sources: Optional[List[Dict[str, Any]]] = None
 
     model_config = ConfigDict(from_attributes=True)
 
